@@ -1,0 +1,235 @@
+---
+title: "Crawl Websites"
+description: "How to orchestrate distributed multi-page website crawls with path filtering using POST /v1/crawls."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+The `/v1/crawls` endpoint executes distributed, multi-page website crawls. Atlas follows links up to your specified `maxDepth` or `maxPages` limits, applies glob path filters (`includePaths`, `excludePaths`), and delivers compiled markdown artifacts through asynchronous job polling or webhooks.
+
+<AuthHeader />
+
+---
+
+## Idempotency Protection
+
+<IdempotencyHeader />
+
+---
+
+## Code Example
+
+<CodeGroup>
+
+```bash cURL
+# 1. Start Crawl Job
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/docs",
+    "maxPages": 50,
+    "includePaths": ["/docs/**"],
+    "excludePaths": ["/docs/v1-archive/**"]
+  }'
+
+# Returns HTTP 202 Accepted:
+# {"id": "job_01h7x...","status": "queued"}
+
+# 2. Check Job Status
+curl -X GET https://api.atlas-compiler.com/v1/jobs/job_01h7x... \
+  -H "Authorization: Bearer atlas_your_api_key_here"
+
+# 3. Retrieve Compiled Results
+curl -X GET https://api.atlas-compiler.com/v1/jobs/job_01h7x.../results \
+  -H "Authorization: Bearer atlas_your_api_key_here"
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+// 1. Submit asynchronous crawl job
+const response = await client.createCrawl({
+  url: 'https://example.com/docs',
+  maxPages: 50,
+  includePaths: ['/docs/**'],
+  excludePaths: ['/docs/v1-archive/**'],
+});
+
+const jobId = response.value.id;
+console.log(`Crawl job started: ${jobId}`);
+
+// 2. Poll helper automatically waits until status === 'ready'
+const job = await client.waitForJob(jobId);
+console.log(`Crawl completed! ${job.progress?.completedItems} pages compiled.`);
+
+// 3. Page through results
+const results = await client.listJobResults(jobId, { limit: 50 });
+for (const page of results.value.data) {
+  console.log(`- ${page.metadata.title} (${page.metadata.canonicalUrl})`);
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    # 1. Start crawl
+    response = client.create_crawl({
+        "url": "https://example.com/docs",
+        "maxPages": 50,
+        "includePaths": ["/docs/**"],
+    })
+
+    job_id = response.value["id"]
+    print(f"Crawl job started: {job_id}")
+
+    # 2. Wait for completion
+    job = client.wait_for_job(job_id)
+    print(f"Completed {job['progress']['completedItems']} pages.")
+
+    # 3. Fetch results
+    results = client.list_job_results(job_id, limit=50)
+    for page in results.value["data"]:
+        print(f"- {page['metadata']['title']}")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	ctx := context.Background()
+
+	maxPages := 50
+	// 1. Start crawl
+	res, _, err := client.CreateCrawl(ctx, atlas.CreateCrawlRequest{
+		Url:          "https://example.com/docs",
+		MaxPages:     &maxPages,
+		IncludePaths: []string{"/docs/**"},
+	})
+	if err != nil {
+		log.Fatalf("Crawl submission failed: %v", err)
+	}
+
+	jobID := res.Response202.Id
+	fmt.Printf("Job submitted: %s\n", jobID)
+
+	// 2. Wait for job
+	job, _, err := client.WaitForJob(ctx, jobID, time.Second, 60*time.Second)
+	if err != nil {
+		log.Fatalf("Job polling failed: %v", err)
+	}
+	fmt.Printf("Job finished with status: %s\n", job.Status)
+
+	// 3. Fetch results
+	limit := 50
+	results, _, err := client.ListJobResults(ctx, jobID, nil, &limit)
+	if err != nil {
+		log.Fatalf("Failed to fetch results: %v", err)
+	}
+	fmt.Printf("Fetched %d compiled pages.\n", len(results.Data))
+}
+```
+
+</CodeGroup>
+
+---
+
+## Request parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Root starting URL for the crawl. |
+| `maxPages` | `integer` | No | `100` | Maximum number of pages to compile (1 to 10,000). |
+| `includePaths` | `string[]` | No | `[]` | Glob patterns to restrict crawl boundaries (e.g., `["/docs/**"]`). |
+| `excludePaths` | `string[]` | No | `[]` | Glob patterns to omit from the crawl (e.g., `["/blog/archive/**"]`). |
+| `maxDepth` | `integer` | No | `10` | Maximum link traversal depth from the entry URL. |
+| `sitemap` | `string` | No | `"include"` | Sitemap discovery policy: `"include"`, `"skip"`, or `"only"`. |
+| `includeSubdomains` | `boolean` | No | `false` | When `true`, follows links across subdomains. |
+| `webhook` | `string \| object` | No | — | Push notification target: a destination HTTPS URL string, an object with `url`, `events`, and `metadata`, or `{ endpointId: string }`. |
+
+---
+
+## Using webhooks with crawls
+
+Instead of polling `waitForJob`, attach a webhook to receive real-time push notifications when your crawl completes or as pages are compiled:
+
+<CodeGroup>
+
+```bash Inline webhook (Terminal events)
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/docs",
+    "maxPages": 50,
+    "webhook": "https://api.your-domain.com/webhooks/atlas"
+  }'
+```
+
+```bash Streaming page webhook (Opt-in)
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/docs",
+    "maxPages": 50,
+    "webhook": {
+      "url": "https://api.your-domain.com/webhooks/atlas",
+      "events": ["job.ready", "crawl.page_completed"],
+      "metadata": {
+        "caller": "docs-sync-worker"
+      }
+    }
+  }'
+```
+
+```typescript TypeScript SDK
+const response = await client.createCrawl({
+  url: 'https://example.com/docs',
+  maxPages: 50,
+  webhook: {
+    url: 'https://api.your-domain.com/webhooks/atlas',
+    events: ['job.ready', 'job.failed'],
+    metadata: { env: 'production' },
+  },
+});
+```
+
+</CodeGroup>
+
+See the [Webhooks Guide](/guides/webhooks) for event schemas, replay tolerance, and cryptographic HMAC signature verification.
+
+---
+
+## Job lifecycle states
+
+```
+[queued] ──► [running] ──► [ingesting] ──► [ready]
+    │             │              │
+    └─────────────┴──────────────┴──────► [failed] / [cancelled]
+```
+
+- **`queued`**: Job accepted and waiting in worker queue.
+- **`running`**: Crawl workers are actively fetching and compiling pages.
+- **`ingesting`**: Compilations complete; artifacts are being structured and indexed.
+- **`ready`**: Crawl finished. All compiled markdown pages are ready for download.
+- **`failed`**: The crawl encountered an unrecoverable failure (e.g., target domain offline).
+- **`cancelled`**: Job was cancelled via `DELETE /v1/jobs/{jobId}`.

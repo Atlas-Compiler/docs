@@ -1,0 +1,138 @@
+---
+title: "Atlas Documentation"
+sidebarTitle: "Introduction"
+description: "Web content, compiled for machines. Transform public web pages into pristine Markdown and structured data with sub-1.5s latency."
+---
+
+Atlas is a high-performance web compilation engine engineered specifically for LLMs, autonomous agents, and structured data pipelines. It transforms messy HTML into clean, deterministic GitHub Flavored Markdown (GFM) and structured JSON while stripping 70–90% of navigation chrome, advertising scripts, and styling overhead.
+
+<CardGroup cols={3}>
+  <Card title="REST API" icon="code" href="/api-reference/overview">
+    Integrate low-latency scraping, deep crawling, and batch extraction via standard HTTP.
+  </Card>
+  <Card title="Language SDKs" icon="cubes" href="/sdk/overview">
+    Native clients for TypeScript, Python, and Go with built-in retries and type safety.
+  </Card>
+  <Card title="AI & MCP Hub" icon="robot" href="/ai/mcp-overview">
+    Connect your AI agents in Cursor, Claude Desktop, and Windsurf via standard MCP.
+  </Card>
+</CardGroup>
+
+---
+
+## The LLM Token Tax
+
+Raw HTML is designed for human eyes in graphical web browsers, not for language models. A typical web page contains megabytes of styling, nested layout divs, telemetry scripts, and boilerplate navigation menus. Feeding raw HTML into LLM context windows causes:
+
+1. **Context Window Saturation**: 70% to 90% of your model's context budget is wasted on non-substantive structural noise.
+2. **Degraded Reasoning Fidelity**: Dense script tags and deeply nested DOM trees dilute model attention, increasing hallucinations.
+3. **Escalating Inference Costs**: You pay token fees for every byte of navigation chrome and tracking script ingested.
+
+```
+Raw Web Page (1.4 MB HTML)
+  ├── 850 KB: Tracking scripts, CSS bundles, ads
+  ├── 350 KB: Navigation bars, footers, cookie banners
+  └── 200 KB: Real substantive article content
+        │
+        ▼ Atlas Compiler Pipeline
+  Pruned Markdown & Structured JSON (~14 KB)
+  ✔ 85%+ Context Reduction  ✔ Preserved Tables & Code Blocks  ✔ Deterministic Formatting
+```
+
+Atlas solves the token tax by compiling web content at the edge before it ever reaches your models.
+
+---
+
+## Core Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Synchronous Scrape" icon="bolt" href="/guides/scrape">
+    Extract high-fidelity markdown from single pages in real time (`POST /v1/scrape`) with sub-1.5s P50 latency.
+  </Card>
+  <Card title="Deep Compile" icon="file-code" href="/guides/compile">
+    Execute deep semantic compilation with structural content graph extraction (`POST /v1/compile`).
+  </Card>
+  <Card title="Domain Mapping" icon="sitemap" href="/guides/map">
+    Discover and heuristically rank all reachable URLs across an entire domain in seconds (`POST /v1/map`).
+  </Card>
+  <Card title="Distributed Crawl" icon="spider" href="/guides/crawl">
+    Execute bounded, multi-page website crawls with glob path filtering and asynchronous job delivery (`POST /v1/crawls`).
+  </Card>
+</CardGroup>
+
+---
+
+## Quick Example
+
+Compile any public URL into token-efficient markdown in a single request:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.scrape({
+  url: 'https://example.com',
+});
+
+console.log(response.value.data.markdown);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.scrape({"url": "https://example.com"})
+    print(response.value["data"]["markdown"])
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	res, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(res.Response200.Data.Markdown)
+}
+```
+
+</CodeGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="play" href="/get-started/quickstart">
+    Get your API key and compile your first page in under 30 seconds.
+  </Card>
+  <Card title="Architecture & Concepts" icon="book" href="/concepts/why-atlas">
+    Explore how Atlas achieves sub-1.5s latency and deterministic extraction.
+  </Card>
+</CardGroup>

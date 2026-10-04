@@ -1,0 +1,179 @@
+---
+title: "REST API Overview"
+description: "Core conventions, authentication, base URLs, rate limits, and idempotency headers for the Atlas public REST API."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+The Atlas REST API provides programmatic, low-latency access to the Atlas web compiler, visual Markdown extractor, sitemap crawler, and topology mapper.
+
+The API is structured around REST principles, accepts JSON-encoded request bodies, returns standard HTTP response codes, and delivers RFC 9457 machine-readable error responses.
+
+---
+
+## Base URL
+
+All requests must be made over HTTPS to the production API origin:
+
+```http
+https://api.atlas-compiler.com/v1
+```
+
+<Note>
+  Workspace resolution is automatic. When you authenticate using a Bearer API key, Atlas automatically associates the request with your target workspace and default project without requiring manual workspace path parameters.
+</Note>
+
+---
+
+## Authentication
+
+Every request to the Atlas API requires a valid API key passed in the standard HTTP `Authorization` header:
+
+<AuthHeader />
+
+Requests missing the `Authorization` header or presenting an expired or revoked key receive an immediate `401 Unauthorized` response.
+
+---
+
+## Idempotency & Safe Retries
+
+For mutating endpoints (such as `POST /v1/compile`, `POST /v1/crawls`, and `POST /v1/batches`), you can attach an optional `Idempotency-Key` header:
+
+<IdempotencyHeader />
+
+When you supply an `Idempotency-Key`:
+- If an identical request is received within 24 hours while the previous request was already processed, Atlas returns the cached result with an added HTTP header: `Idempotency-Replayed: true`.
+- If an identical request arrives while the first request is still actively executing, Atlas safely coordinates execution to prevent duplicate work or redundant billing deductions.
+
+---
+
+## Request & Response Headers
+
+### Standard Request Headers
+
+| Header | Required | Description |
+| :--- | :--- | :--- |
+| `Authorization` | **Yes** | Bearer authentication token (`Bearer atlas_...`). |
+| `Content-Type` | **Yes** | Must be `application/json` for all POST requests. |
+| `Idempotency-Key` | No | Unique client-generated key (min 8 chars) for retry deduplication. |
+
+### Standard Response Headers
+
+Every response from the Atlas API includes headers for tracing, rate limiting, and caching:
+
+| Header | Description |
+| :--- | :--- |
+| `x-atlas-request-id` | Unique request identifier (e.g., `req_01j7abc123...`) used for support and tracing. |
+| `x-ratelimit-limit-requests` | Maximum number of requests allowed per rolling minute for your tier. |
+| `x-ratelimit-remaining-requests` | Remaining request quota available in the current rate limit window. |
+| `x-ratelimit-reset-requests` | Seconds remaining until the current rate limit window resets. |
+| `Idempotency-Replayed` | Present and set to `"true"` when returning a previously computed response. |
+
+---
+
+## Standard HTTP Status Codes
+
+Atlas uses conventional HTTP response codes to indicate request outcomes:
+
+| Status Code | Meaning | Description |
+| :--- | :--- | :--- |
+| `200 OK` | Success | The compilation or operation completed synchronously. The response body contains results. |
+| `202 Accepted` | Asynchronous Job | Long-running crawls or batches have been queued. Inspect the returned `Location` header or job ID. |
+| `400 Bad Request` | Validation Error | Request body or query parameters failed validation. Details appear in `invalidParams`. |
+| `401 Unauthorized` | Authentication Failure | Missing, malformed, or invalid API key. |
+| `403 Forbidden` | Access Denied | API key lacks required scope, or IP address is not allowlisted. |
+| `404 Not Found` | Resource Missing | Target job ID, workspace, or resource does not exist. |
+| `409 Conflict` | State Conflict | An in-flight idempotent request is conflicting, or resource state is locked. |
+| `429 Too Many Requests` | Rate Limit Exceeded | Workspace exceeded concurrent job limits or per-minute request rate. Inspect `retryAfter`. |
+| `500 Internal Error` | Internal Server Error | Unexpected error occurred in the edge cluster. Request is automatically marked retryable. |
+| `503 Service Unavailable` | Service Unavailable | Engine capacity temporary saturation or scheduled maintenance window. |
+
+For detailed machine-readable error codes and handling recipes, see the [RFC 9457 Error Dictionary](/api-reference/errors).
+
+---
+
+## Polyglot Quick Example
+
+Here is how to perform an authenticated synchronous extraction across our 4 supported SDK languages:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "formats": ["markdown"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY!,
+});
+
+const result = await atlas.scrape({
+  url: 'https://example.com',
+  formats: ['markdown'],
+});
+
+console.log(result.data.markdown);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = atlas.scrape(
+    url="https://example.com",
+    formats=["markdown"],
+)
+
+print(result.data.markdown)
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	result, _, err := client.Scrape(context.Background(), atlas.ScrapeRequest{
+		Url:     "https://example.com",
+		Formats: []string{"markdown"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	if result.Response200 != nil {
+		fmt.Println(result.Response200.Markdown)
+	}
+}
+```
+</CodeGroup>
+
+---
+
+## Asynchronous operations & webhooks
+
+Long-running jobs—such as recursive domain crawls (`POST /v1/crawls`) and multi-URL batches (`POST /v1/batches`)—execute asynchronously.
+
+When submitted, Atlas immediately returns `HTTP 202 Accepted` with a unique job ID (`job_...`). You can track progress in two ways:
+
+1. **Webhooks (Recommended)**: Pass an HTTPS `webhook` parameter in your request body to receive real-time push notifications when the job reaches terminal completion (`job.ready`, `job.failed`, `job.cancelled`) or as individual crawl pages complete (`crawl.page_completed`). See the [Webhooks Guide](/guides/webhooks) for event schemas, replay protection, and signature verification.
+2. **Polling**: Query `GET /v1/jobs/{jobId}` until `status` transitions to `ready` or `failed`, or use the built-in `waitForJob` polling helper provided by the official SDKs.
+

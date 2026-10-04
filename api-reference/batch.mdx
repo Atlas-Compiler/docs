@@ -1,0 +1,122 @@
+---
+title: "Create Batch Job"
+openapi: "POST /v1/batches"
+description: "Submit multi-URL batch compilation requests with parallel execution and isolated partial failure handling."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+Submit a batch of up to 1,000 URLs for parallel compilation. Atlas distributes the batch across its edge cluster, compiles pages concurrently, and isolates upstream errors so that failure on one URL does not prevent others from succeeding.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+To prevent duplicate batch creation on network retries, provide an `Idempotency-Key` header:
+
+<IdempotencyHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/batches \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JBATCHJOB001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com/page-1",
+      "https://example.com/page-2",
+      "https://example.com/page-3"
+    ],
+    "formats": ["markdown", "links"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const res = await atlas.createBatch({
+  urls: [
+    'https://example.com/page-1',
+    'https://example.com/page-2',
+    'https://example.com/page-3',
+  ],
+  formats: ['markdown', 'links'],
+  webhook: {
+    url: 'https://api.your-domain.com/webhooks/atlas',
+    events: ['job.ready', 'job.failed'],
+  },
+});
+
+console.log('Batch Job Created:', res.value.id);
+console.log('Status:', res.value.status);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+res = atlas.create_batch({
+    "urls": [
+        "https://example.com/page-1",
+        "https://example.com/page-2",
+        "https://example.com/page-3",
+    ],
+    "formats": ["markdown", "links"],
+    "webhook": "https://api.your-domain.com/webhooks/atlas",
+})
+
+print(f"Batch Job Created: {res.value['id']} (Status: {res.value['status']})")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.CreateBatch(context.Background(), atlas.CreateBatchRequest{
+		Urls: []string{
+			"https://example.com/page-1",
+			"https://example.com/page-2",
+			"https://example.com/page-3",
+		},
+		Formats: []string{"markdown", "links"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Batch Job Created: %s (Status: %s)\n", res.Response202.Id, res.Response202.Status)
+}
+```
+</CodeGroup>
+
+---
+
+## Tracking Progress & Fetching Results
+
+Atlas admits the batch job asynchronously, returning `202 Accepted` with the job descriptor:
+
+1. **Poll Status**: Call [`GET /v1/jobs/{jobId}`](/api-reference/get-job) to monitor `progress.completedItems` and `progress.failedItems`.
+2. **Retrieve Results**: Once complete, stream or paginate the compiled documents via [`GET /v1/jobs/{jobId}/results`](/api-reference/job-results).
+3. **Inspect Errors**: Any failed URLs can be inspected via [`GET /v1/jobs/{jobId}/errors`](/api-reference/job-errors).

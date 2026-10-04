@@ -1,0 +1,54 @@
+---
+title: "Product Changelog"
+description: "Release notes, platform updates, and feature announcements for the Atlas web compiler and developer platform."
+---
+
+Track updates, new capabilities, and platform releases across the Atlas API, official SDKs, and Model Context Protocol integrations.
+
+---
+
+## Atlas v1.0.0 — Launch Release
+
+Welcome to the initial production release of **Atlas Compiler** (`v1.0.0`). Atlas delivers a deterministic visual Web-to-Markdown compiler built from the ground up for LLM reasoning and autonomous AI agents.
+
+### Core Compiler & Extraction Engine
+
+- **Visual Edge Compilation (`POST /v1/compile`)**:
+  - Deterministic conversion of dynamic SPAs, complex documentation layouts, and multi-column tables into clean, token-efficient GitHub Flavored Markdown (GFM).
+  - Eliminates 60% to 80% of unnecessary markup, headers, and tracking noise compared to raw HTML extractors.
+  - Optional Intermediate Representation (`ir`) format for structured AST graph traversal and semantic hierarchy inspection.
+- **Fast Single-Page Scraper (`POST /v1/scrape`)**:
+  - Low-latency extraction of Markdown, links, and page metadata for lightweight content retrieval.
+  - In-memory processing with audited **Zero Data Retention (ZDR)**—no target page bodies or user content are retained on disk.
+
+### Multi-Page Exploration & Discovery
+
+- **Domain Topology Mapping (`POST /v1/map`)**:
+  - Fast sitemap-first URL discovery and heuristic route prioritization (0–100 scoring) without downloading full page bodies.
+  - Estimates total page count, primary framework, language, and token budget across the target domain.
+- **Distributed Recursive Crawler (`POST /v1/crawls`)**:
+  - Asynchronous multi-page spidering with glob path filtering (`includePaths`, `excludePaths`), depth limits, and max page caps.
+  - Opportunistic bounded polling for instant responses on smaller crawl targets.
+- **Resilient Batch Processing (`POST /v1/batches`)**:
+  - Parallel compilation of up to 1,000 explicit URLs per job with partial failure isolation—individual upstream errors do not abort the job.
+
+### Model Context Protocol (MCP 2026-07-28)
+
+- **Official `@atlascompiler/mcp` Server**:
+  - Implements the open Model Context Protocol `2026-07-28` specification.
+  - Dual-transport architecture: local stdio process for Cursor, Windsurf, Claude Desktop, and VS Code; cloud-native Streamable HTTP at `POST https://api.atlas-compiler.com/mcp`.
+  - 5 agent-ready tools: `atlas_compile`, `atlas_scrape`, `atlas_map`, `atlas_crawl`, and `atlas_batch`.
+  - Context window protection via character budgets and virtual `atlas://` resource URIs (`compilation`, `section`, `ast`, `crawl`).
+  - RFC 8414 OAuth 2.0 Protected Resource discovery at `GET /.well-known/oauth-protected-resource`.
+
+### Developer Platform & SDKs
+
+- **Multi-Language Client Libraries**:
+  - **TypeScript / JavaScript**: `@atlascompiler/sdk` with full typing, response envelope convenience getters, and HMAC signature helpers.
+  - **Python**: `atlascompiler` on PyPI with synchronous and asynchronous clients, typed models, and keyword argument flexibility.
+  - **Go**: `go.atlas-compiler.com/sdk/pkg/atlas` with zero external dependencies outside standard library and context cancellation.
+- **Cryptographic Webhooks**:
+  - Real-time HMAC-SHA256 signed event delivery for asynchronous crawl and batch completion (`crawl.completed`, `batch.completed`, `crawl.failed`, `batch.failed`).
+- **Production Quotas & Problem Details**:
+  - Machine-readable RFC 9457 error details with granular `code`, `requestId`, and `retryable` indicators.
+  - Concurrency leasing and credit consumption management powered by D1 compare-and-swap invariants.

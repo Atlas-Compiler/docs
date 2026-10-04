@@ -1,0 +1,59 @@
+---
+title: "SDK Overview"
+description: "Official, type-safe client libraries for TypeScript/JavaScript, Python, and Go with automatic workspace resolution and retry resilience."
+---
+
+Atlas provides official, contract-tested client libraries for **TypeScript/JavaScript**, **Python**, and **Go**. Every SDK is generated directly from reviewed OpenAPI specifications, guaranteeing 100% schema alignment with the production Atlas API.
+
+---
+
+## Available SDKs
+
+<CardGroup cols={3}>
+  <Card title="TypeScript / JavaScript" icon="js" href="/sdk/javascript">
+    ```bash
+    npm install @atlascompiler/sdk
+    ```
+    Native `fetch`, zero runtime dependencies, full TypeScript types, and webhook verification.
+  </Card>
+  <Card title="Python" icon="python" href="/sdk/python">
+    ```bash
+    pip install atlascompiler
+    ```
+    Type-annotated client using `httpx`, synchronous and context manager support, Pydantic models.
+  </Card>
+  <Card title="Go" icon="golang" href="/sdk/go">
+    ```bash
+    go get go.atlas-compiler.com/sdk
+    ```
+    Idiomatic Go client with context cancellation, typed structs, and HMAC webhook verification.
+  </Card>
+</CardGroup>
+
+---
+
+## Core design principles
+
+All official Atlas SDKs follow consistent architectural standards:
+
+1. **Automatic workspace resolution**: Authenticate using your Atlas API key (`atlas_...`). The SDK and backend resolve your workspace and default project automatically.
+2. **Type safety & schema fidelity**: Request parameters, responses, metadata, and error objects are strongly typed according to our public OpenAPI contracts.
+3. **Built-in resilience & exponential backoff**: Transient errors (HTTP 429 rate limits, 503 capacity saturation) are automatically retried with jitter when marked retryable.
+4. **Idempotency built-in**: Mutating compilation, crawl, and batch requests accept client-provided idempotency keys to ensure zero-duplicate billing on retries.
+5. **Zero external dependencies**: Our TypeScript library runs anywhere modern JavaScript executes (Node.js 18+, Bun, Deno, Cloudflare Workers, Next.js Edge).
+
+---
+
+## SDK feature support matrix
+
+| Feature | TypeScript / JavaScript | Python | Go |
+| :--- | :--- | :--- | :--- |
+| **Synchronous Scrape & Compile** | Supported | Supported | Supported |
+| **Domain Topology Mapping** | Supported | Supported | Supported |
+| **Distributed Crawls & Batches** | Supported | Supported | Supported |
+| **Cursor-based Pagination** | Supported | Supported | Supported |
+| **RFC 9457 Problem Errors** | Supported (`AtlasError`) | Supported (`AtlasError`) | Supported (`atlas.Error`) |
+| **Standard Webhooks Verification** | Supported (`verifyWebhookSignature`) | Supported (`verify_webhook_signature`) | Supported (`atlas.VerifyWebhook`) |
+| **Dual-Secret Rotation Support** | Supported | Supported | Supported |
+| **Automatic Retries with Jitter** | Supported | Supported | Supported |
+| **Streaming / Raw Operations** | Supported (`client.raw()`) | Supported (`client.raw()`) | Supported |

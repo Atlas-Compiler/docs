@@ -1,0 +1,130 @@
+---
+title: "Create Crawl Job"
+openapi: "POST /v1/crawls"
+description: "Start a distributed, recursive crawl across an entire domain or documentation section."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+Initiate a distributed, asynchronous crawl job across a target website. Atlas traverses hyperlinks from the root URL, enforces inclusion/exclusion path rules, respects sitemaps, and compiles discovered pages into clean Markdown.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+To prevent duplicate crawl jobs on accidental retries, provide an `Idempotency-Key` header:
+
+<IdempotencyHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JCRAWLJOB001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.stripe.com",
+    "maxPages": 100,
+    "maxDepth": 5,
+    "includePaths": ["/docs/**"],
+    "excludePaths": ["/docs/legacy/**"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const res = await atlas.createCrawl({
+  url: 'https://docs.stripe.com',
+  maxPages: 100,
+  maxDepth: 5,
+  includePaths: ['/docs/**'],
+  excludePaths: ['/docs/legacy/**'],
+  webhook: {
+    url: 'https://api.your-domain.com/webhooks/atlas',
+    events: ['job.ready', 'job.failed'],
+  },
+});
+
+console.log('Crawl Job Admitted:', res.value.id);
+console.log('Status:', res.value.status);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+res = atlas.create_crawl({
+    "url": "https://docs.stripe.com",
+    "maxPages": 100,
+    "maxDepth": 5,
+    "includePaths": ["/docs/**"],
+    "excludePaths": ["/docs/legacy/**"],
+    "webhook": "https://api.your-domain.com/webhooks/atlas",
+})
+
+print(f"Crawl Job Admitted: {res.value['id']} (Status: {res.value['status']})")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	maxPages := 100
+	maxDepth := 5
+	res, _, err := client.CreateCrawl(context.Background(), atlas.CreateCrawlRequest{
+		Url:          "https://docs.stripe.com",
+		MaxPages:     &maxPages,
+		MaxDepth:     &maxDepth,
+		IncludePaths: []string{"/docs/**"},
+		ExcludePaths: []string{"/docs/legacy/**"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Crawl Job Admitted: %s (Status: %s)\n", res.Response202.Id, res.Response202.Status)
+}
+```
+</CodeGroup>
+
+---
+
+## Asynchronous Lifecycle & Polling
+
+When a crawl is admitted, Atlas returns `202 Accepted` with a `Location: /v1/jobs/{jobId}` header and an initial job object:
+
+```json
+{
+  "id": "job_01j7abc...",
+  "status": "queued",
+  "createdAt": "2026-09-19T12:00:00.000Z"
+}
+```
+
+### Retrieving Results
+
+1. **Poll Status**: Call [`GET /v1/jobs/{jobId}`](/api-reference/get-job) periodically until `status` transitions to `"ready"` or `"failed"`.
+2. **Fetch Pages**: Once ready, fetch compiled page artifacts using cursor pagination via [`GET /v1/jobs/{jobId}/results`](/api-reference/job-results).
+3. **Inspect Errors**: Any individual page errors encountered during the crawl are accessible via [`GET /v1/jobs/{jobId}/errors`](/api-reference/job-errors).

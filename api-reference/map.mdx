@@ -1,0 +1,135 @@
+---
+title: "Map Domain"
+openapi: "POST /v1/map"
+description: "Discover URL topology, sitemaps, and linked navigation graphs for an entire domain without downloading page bodies."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+Discover the structural architecture of a domain. Atlas inspects `robots.txt`, traverses standard and nested XML sitemaps, and follows high-priority internal links to return a prioritized list of available URLs.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/map \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.github.com",
+    "limit": 50,
+    "sitemap": "include",
+    "includeSubdomains": false
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const result = await atlas.map({
+  url: 'https://docs.github.com',
+  limit: 50,
+  sitemap: 'include',
+  includeSubdomains: false,
+});
+
+if (result.status === 200) {
+  console.log(`Discovered ${result.value.links.length} URLs (Estimated total: ${result.value.summary.estimatedPages}):`);
+  result.value.links.forEach((link) => console.log(` - [Priority ${link.priority}] ${link.url}`));
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = client.map({
+    "url": "https://docs.github.com",
+    "limit": 50,
+    "sitemap": "include",
+    "includeSubdomains": False,
+})
+
+if result.status == 200:
+    links = result.value["links"]
+    print(f"Discovered {len(links)} URLs (Estimated total: {result.value['summary']['estimatedPages']}):")
+    for link in links:
+        print(f" - [Priority {link['priority']}] {link['url']}")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	limit := 50
+	sitemap := "include"
+	subdomains := false
+
+	res, _, err := client.Map(context.Background(), atlas.MapUrlRequest{
+		Url:               "https://docs.github.com",
+		Limit:             &limit,
+		Sitemap:           &sitemap,
+		IncludeSubdomains: &subdomains,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Discovered %d URLs (Estimated total: %d)\n", len(res.Response200.Links), res.Response200.Summary.EstimatedPages)
+		for _, link := range res.Response200.Links {
+			fmt.Printf(" - [Priority %v] %s\n", link.Priority, link.Url)
+		}
+	}
+}
+```
+</CodeGroup>
+
+---
+
+## Response Structure
+
+A successful `200 OK` response contains:
+- `success`: Boolean indicating whether mapping completed successfully.
+- `links`: Array of discovered URL objects:
+  - `url`: Discovered page URL.
+  - `title`: Extracted page title (if available from navigation or sitemap).
+  - `description`: Meta description or extracted snippet summary.
+  - `sources`: Discovery origins (`["sitemap"]`, `["homepage"]`, `["navigation"]`, `["rss"]`, `["manifest"]`).
+  - `priority`: Normalized relevance score (0–100).
+  - `confidence`: Heuristic certainty score (0–100).
+  - `depth`: Link depth relative to the root URL.
+  - `recommended`: Boolean indicating high-priority content recommended for indexing or compilation.
+  - `incomingLinks`: Number of internal pages linking to this route.
+- `summary`: High-level domain topology metrics:
+  - `estimatedPages`: Estimated total page count across the domain.
+  - `framework`: Detected web framework (e.g. Next.js, Astro, Docusaurus).
+  - `language`: Detected primary language.
+  - `discoveryConfidence`: Discovery confidence percentage.
+  - `recommendedDepth`: Recommended crawl depth limit.
+  - `recommendedEntryPoint`: Primary documentation or content entry route.
+  - `estimatedCompileTime`: Estimated time to compile the mapped pages.
+  - `estimatedTokens`: Estimated token count for LLM context planning.
+- `usage`: Credit consumption details (`credits: 1`).

@@ -1,0 +1,98 @@
+---
+title: "The Compiler Pipeline"
+description: "The 4-stage transformation lifecycle: Fetch, Structural Analysis, Content Extraction & Token Pruning, and Schema Structuring."
+---
+
+When you submit a URL to Atlas, it passes through a 4-stage transformation pipeline executed entirely within ephemeral memory buffers.
+
+```
+Incoming Request
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Ingestion & Fetch                                        │
+│    • Edge-routed HTTP fetch with TLS 1.3                    │
+│    • Transparent redirect resolution & canonical discovery  │
+│    • Charset normalization (UTF-8) & decompression (Brotli) │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Structural Analysis                                      │
+│    • In-memory document tree construction                   │
+│    • Semantic boundary detection (Main Content vs Shell)    │
+│    • Identification of tabular data & code blocks           │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Content Extraction & Token Pruning                       │
+│    • Removal of ad scripts, tracking tags, and iframes      │
+│    • Demotion of navigation menus, footers, and banners     │
+│    • Text density analysis & whitespace normalization       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. Schema Structuring & Markdown Generation                 │
+│    • Deterministic GitHub Flavored Markdown (GFM) synthesis │
+│    • Document metadata extraction (title, author, date)     │
+│    • Structured JSON metadata assembly                      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+Clean Markdown & Metadata Response (< 1.5s)
+```
+
+---
+
+## 1. Ingestion & Fetch
+
+The ingestion stage establishes secure outbound connections to origin web servers:
+
+- **Global Edge Routing**: Outbound requests originate from edge points of presence strategically routed close to target infrastructure.
+- **Decompression & Charset Normalization**: Atlas transparently negotiates Brotli (`br`), Zstandard (`zstd`), and Gzip (`gzip`) compression, normalizing all incoming character encodings into standard UTF-8.
+- **Redirect Tracking**: Up to 10 HTTP redirects (301, 302, 307, 308) are followed to determine the authoritative canonical destination URL.
+
+---
+
+## 2. Structural Analysis
+
+Once the raw payload is in memory, Atlas constructs a structured document node graph:
+
+- **Semantic Role Identification**: Nodes are mapped by functional purpose (headings, prose sections, code snippets, data tables, lists, blockquotes).
+- **Primary Body Isolation**: The core article or document body is structurally separated from surrounding page chrome (headers, global site navigation, cookie banners, footers, sidebars).
+- **Tabular & Code Block Preservation**: Multi-column data tables and fenced code blocks are flagged for strict AST retention to ensure syntax and structure are not flattened.
+
+---
+
+## 3. Content Extraction & Token Pruning
+
+This stage eliminates token overhead while safeguarding information density:
+
+### Elements Eliminated:
+- **Active Code & Tracking**: `<script>`, `<style>`, `<noscript>`, `<template>`, `<link>`, and tracking pixels.
+- **Chrome & Interstitials**: `<nav>`, `<aside>`, `<footer>`, modal dialogs, cookie consent banners, and promotional popups.
+- **Embedded Media Wrappers**: Decorative SVGs, tracking iframes, advertisement placeholders, and social share widgets.
+
+### Elements Preserved:
+- **Headings**: `<h1>` through `<h6>` maintaining exact hierarchical nesting.
+- **Code & Syntax**: Fenced code blocks with language identifiers (`typescript`, `python`, `sql`, etc.) and inline code snippets.
+- **Tables**: Markdown table formatting with preserved column alignments.
+- **Rich Prose**: Bulleted and numbered lists, blockquotes, bold/italic formatting, and hyperlinked inline references.
+
+---
+
+## 4. Schema Structuring & Markdown Generation
+
+In the final stage, the validated document graph is synthesized into client-facing outputs:
+
+1. **GitHub Flavored Markdown (GFM)**: Clean, deterministic markdown string optimized for LLM token ingestion.
+2. **Document Metadata**: Structured key-value object containing:
+   - `title`: Extracted page title resolved from OpenGraph, Twitter tags, and primary heading tags.
+   - `canonicalUrl`: The final resolved URL.
+   - `description`: Meta description or extracted executive summary.
+   - `author`: Article author if detected in semantic markup.
+   - `publishedDate`: ISO 8601 timestamp of publication or last update.
+   - `language`: BCP 47 language tag (e.g., `en`, `es`, `de`).
+   - `extractionConfidence`: Probabilistic score (`0.0` to `1.0`) indicating extraction quality.

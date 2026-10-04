@@ -1,0 +1,25 @@
+/* Atlas Documentation Custom Layout & Spacing Polish */
+
+/* Expand site container max-width on wide screens (1440px -> 1680px) to reduce excessive side margins */
+@media (min-width: 1536px) {
+  [class*="max-w-8xl"] {
+    max-width: 1680px !important;
+  }
+}
+
+@media (min-width: 1280px) and (max-width: 1535px) {
+  [class*="max-w-8xl"] {
+    max-width: 1400px !important;
+  }
+}
+
+/* Ensure content area expands with the wider container */
+#content-area {
+  max-width: 100% !important;
+}
+
+/* Maintain comfortable reading line-length for standard prose while allowing code blocks & tables to expand */
+#content-area .prose > p,
+#content-area [data-as="p"] {
+  max-width: 80ch;
+}

@@ -1,0 +1,112 @@
+---
+title: "Output Models"
+description: "Detailed specification for GitHub Flavored Markdown (GFM), structured metadata, and intermediate representations."
+---
+
+Atlas produces deterministic, structured outputs designed for immediate consumption by language models, vector databases, and RAG pipelines.
+
+---
+
+## 1. GitHub Flavored Markdown (GFM)
+
+The primary content payload is standard GitHub Flavored Markdown returned under `data.markdown`.
+
+### Key Formatting Guarantees:
+- **Heading Hierarchy**: Preserves logical `h1` through `h6` nesting without skipping levels.
+- **Fenced Code Blocks**: Syntax-highlighted code blocks with detected language specifiers (e.g., ` ```typescript `, ` ```python `).
+- **Tabular Data**: Multi-column HTML tables are converted into clean GFM pipe tables with aligned headers:
+  ```markdown
+  | Feature | Status | Speed |
+  | :--- | :--- | :--- |
+  | Scrape | Active | < 1.5s |
+  | Crawl | Active | Async |
+  ```
+- **Normalized Links**: Relative URLs (`/docs/api`) are automatically resolved against the document's canonical base URL into fully qualified absolute URLs (`https://example.com/docs/api`).
+- **Whitespace Sanitation**: Redundant line breaks, trailing spaces, and non-breaking spaces (`&nbsp;`) are normalized into standard markdown paragraphs.
+
+---
+
+## 2. Document Metadata Schema
+
+Extracted alongside markdown content under the `metadata` key:
+
+```json
+{
+  "metadata": {
+    "title": "Understanding Neural Network Optimizers",
+    "canonicalUrl": "https://ai.example.com/articles/optimizers",
+    "author": "Dr. Elena Rostova",
+    "description": "A comprehensive deep dive into SGD, AdamW, and modern second-order optimization techniques.",
+    "publishedDate": "2026-04-12T14:30:00.000Z",
+    "extractionConfidence": 0.96,
+    "documentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "language": "en"
+  }
+}
+```
+
+### Field Definitions
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `title` | `string` | The extracted document title resolved from OpenGraph, meta tags, and main heading. |
+| `canonicalUrl` | `string` | The canonical destination URL following redirects and canonical link tags. |
+| `author` | `string \| null` | The identified author or organization from structured markup. |
+| `description` | `string \| null` | The page summary or meta description. |
+| `publishedDate` | `string \| null` | ISO 8601 timestamp of publication or last revision. |
+| `extractionConfidence` | `number` | Score between `0.0` and `1.0` reflecting the semantic coherence of the extraction. |
+| `documentHash` | `string` | SHA-256 hash of the extracted substantive text for change detection and deduplication. |
+| `language` | `string \| null` | BCP 47 language code (e.g., `en`, `es`, `zh`). |
+
+---
+
+## 3. Intermediate Representation (IR)
+
+When invoking `/v1/compile` or requesting `formats: ["markdown", "ir"]`, Atlas returns a content graph:
+
+```json
+{
+  "ir": {
+    "version": "1.0",
+    "contentGraph": {
+      "nodes": {
+        "node_1": {
+          "id": "node_1",
+          "type": "heading",
+          "level": 1,
+          "content": "Understanding Neural Network Optimizers",
+          "parent": "root",
+          "children": []
+        },
+        "node_2": {
+          "id": "node_2",
+          "type": "paragraph",
+          "content": "Optimization algorithms are the engine of machine learning...",
+          "parent": "root",
+          "children": []
+        }
+      },
+      "readingOrder": ["node_1", "node_2"]
+    }
+  }
+}
+```
+
+The Intermediate Representation is ideal for **chunking algorithms** in RAG architectures, allowing you to split documents along semantic node boundaries rather than arbitrary character counts.
+
+---
+
+## 4. Usage Object
+
+Every API response includes a `usage` object detailing credit consumption:
+
+```json
+{
+  "usage": {
+    "credits": 1
+  }
+}
+```
+
+- Standard synchronous scrapes consume **1 credit**.
+- Long-running crawls and batch requests bill credits per successfully compiled page.

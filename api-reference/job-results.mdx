@@ -1,0 +1,103 @@
+---
+title: "Get Job Results"
+openapi: "GET /v1/jobs/{jobId}/results"
+description: "Retrieve paginated results and compiled page artifacts for an asynchronous crawl, compile, or batch job."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+Fetch compiled page artifacts for an asynchronous crawl or batch job. Results are delivered using opaque cursor-based pagination to guarantee consistent ordering across high-volume crawls.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.atlas-compiler.com/v1/jobs/job_01j7abc123/results?limit=20" \
+  -H "Authorization: Bearer $ATLAS_API_KEY"
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const results = await atlas.listJobResults('job_01j7abc123', {
+  limit: 20,
+});
+
+for (const item of results.value.data) {
+  console.log('URL:', item.url);
+  console.log('Markdown:\n', item.markdown);
+}
+
+if (results.value.nextCursor) {
+  console.log('Next Cursor:', results.value.nextCursor);
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+results = client.list_job_results("job_01j7abc123", limit=20)
+
+for item in results.value["data"]:
+    print(f"URL: {item['url']}")
+    print(item["markdown"][:200])
+
+if results.value.get("nextCursor"):
+    print(f"Next Cursor: {results.value['nextCursor']}")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	limit := 20
+	results, _, err := client.ListJobResults(context.Background(), "job_01j7abc123", nil, &limit)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, item := range results.Data {
+		if item.Url != nil {
+			fmt.Printf("URL: %s\n", *item.Url)
+		}
+	}
+
+	if results.NextCursor != nil {
+		fmt.Printf("Next Cursor: %s\n", *results.NextCursor)
+	}
+}
+```
+</CodeGroup>
+
+---
+
+## Pagination Pattern
+
+When iterating through large crawl jobs (e.g. 5,000 pages), supply the `nextCursor` value from the previous response in the `cursor` query parameter until `nextCursor` is `null` or omitted:
+
+```http
+GET /v1/jobs/job_01j7abc123/results?limit=50&cursor=cur_01j8xyz...
+```

@@ -1,0 +1,5584 @@
+# Atlas Compiler — Full Public Documentation
+
+> Complete aggregated documentation for Atlas Compiler, optimized for large language model reasoning and agent context windows.
+
+---
+
+## Atlas Documentation
+
+URL: https://docs.atlas-compiler.com/introduction
+
+Summary: Web content, compiled for machines. Transform public web pages into pristine Markdown and structured data with sub-1.5s latency.
+
+Atlas is a high-performance web compilation engine engineered specifically for LLMs, autonomous agents, and structured data pipelines. It transforms messy HTML into clean, deterministic GitHub Flavored Markdown (GFM) and structured JSON while stripping 70–90% of navigation chrome, advertising scripts, and styling overhead.
+
+  
+  
+
+---
+
+## The LLM Token Tax
+
+Raw HTML is designed for human eyes in graphical web browsers, not for language models. A typical web page contains megabytes of styling, nested layout divs, telemetry scripts, and boilerplate navigation menus. Feeding raw HTML into LLM context windows causes:
+
+1. **Context Window Saturation**: 70% to 90% of your model's context budget is wasted on non-substantive structural noise.
+2. **Degraded Reasoning Fidelity**: Dense script tags and deeply nested DOM trees dilute model attention, increasing hallucinations.
+3. **Escalating Inference Costs**: You pay token fees for every byte of navigation chrome and tracking script ingested.
+
+```
+Raw Web Page (1.4 MB HTML)
+  ├── 850 KB: Tracking scripts, CSS bundles, ads
+  ├── 350 KB: Navigation bars, footers, cookie banners
+  └── 200 KB: Real substantive article content
+        │
+        ▼ Atlas Compiler Pipeline
+  Pruned Markdown & Structured JSON (~14 KB)
+  ✔ 85%+ Context Reduction  ✔ Preserved Tables & Code Blocks  ✔ Deterministic Formatting
+```
+
+Atlas solves the token tax by compiling web content at the edge before it ever reaches your models.
+
+---
+
+## Core Capabilities
+
+  
+  
+  
+
+---
+
+## Quick Example
+
+Compile any public URL into token-efficient markdown in a single request:
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.scrape({
+  url: 'https://example.com',
+});
+
+console.log(response.value.data.markdown);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.scrape({"url": "https://example.com"})
+    print(response.value["data"]["markdown"])
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	res, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(res.Response200.Data.Markdown)
+}
+```
+
+---
+
+## Next Steps
+
+---
+
+## Quickstart
+
+URL: https://docs.atlas-compiler.com/get-started/quickstart
+
+Summary: Get up and running with Atlas and compile your first web page in under 30 seconds.
+
+This guide walks you through compiling your first public web page into clean, structured markdown. Our goal is a **30-second time-to-first-compile**.
+
+---
+
+### Step: Get your API key
+Sign in to the [Atlas Dashboard](https://dashboard.atlas-compiler.com) and generate an API key from the **API Keys** section. 
+
+Keys use the standard unified `atlas_` prefix followed by 43 base64url characters:
+
+```bash
+export ATLAS_API_KEY="atlas_your_api_key_here"
+```
+
+  Keep your API key secure. Never commit keys to source control or embed them in client-side applications.
+
+### Step: Choose your tool
+You can invoke the Atlas API directly via `cURL` or install our official client libraries for TypeScript, Python, or Go:
+
+  
+    No installation required. You can make HTTP requests directly from your terminal.
+  
+  
+    ```bash
+    npm install @atlascompiler/sdk
+    # or pnpm add @atlascompiler/sdk
+    ```
+  
+  
+    ```bash
+    pip install atlascompiler
+    ```
+  
+  
+    ```bash
+    go get go.atlas-compiler.com/sdk/pkg/atlas
+    ```
+  
+
+### Step: Compile your first page
+Execute a synchronous compile request against any public web page:
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.scrape({
+  url: 'https://example.com',
+});
+
+if (response.status === 200) {
+  console.log('Title:', response.value.metadata.title);
+  console.log('Markdown:\n', response.value.data.markdown);
+  console.log('Credits Used:', response.value.usage.credits);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.scrape({"url": "https://example.com"})
+    
+    if response.status == 200:
+        print("Title:", response.value["metadata"]["title"])
+        print("Markdown:\n", response.value["data"]["markdown"])
+        print("Credits Used:", response.value["usage"]["credits"])
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	
+	res, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com",
+	})
+	if err != nil {
+		log.Fatalf("Scrape failed: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Println("Title:", res.Response200.Metadata.Title)
+		fmt.Println("Markdown:\n", res.Response200.Data.Markdown)
+		fmt.Println("Credits Used:", res.Response200.Usage.Credits)
+	}
+}
+```
+
+### Step: Inspect the response
+Atlas returns clean GitHub Flavored Markdown alongside extracted document metadata and credit usage:
+
+```json
+{
+  "data": {
+    "markdown": "# Example Domain\n\nThis domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.\n\n[More information...](https://www.iana.org/domains/example)",
+    "links": [
+      "https://www.iana.org/domains/example"
+    ]
+  },
+  "metadata": {
+    "title": "Example Domain",
+    "canonicalUrl": "https://example.com/",
+    "author": null,
+    "description": "Illustrative example domain managed by IANA.",
+    "publishedDate": null,
+    "extractionConfidence": 0.98,
+    "language": "en"
+  },
+  "usage": {
+    "credits": 1
+  }
+}
+```
+
+### Response Field Breakdown
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `data.markdown` | `string` | Pristine GitHub Flavored Markdown with boilerplate scripts and navigation stripped. |
+| `data.links` | `string[]` | Array of absolute outbound URLs discovered within the document body. |
+| `metadata.title` | `string` | Extracted page title resolved from OpenGraph, meta tags, and document headings. |
+| `metadata.canonicalUrl` | `string` | Resolved canonical URL following any HTTP redirects. |
+| `metadata.extractionConfidence` | `number` | Quality confidence score between `0.0` and `1.0`. |
+| `usage.credits` | `integer` | Total credits billed for this compilation (1 credit per standard page). |
+
+---
+
+## What to Explore Next
+
+---
+
+## Authentication & API Keys
+
+URL: https://docs.atlas-compiler.com/get-started/authentication
+
+Summary: How to authenticate Atlas API requests, configure API key scopes, and handle workspace resolution.
+
+Every request to the Atlas API must be authenticated using an API key passed in the HTTP `Authorization` header using the `Bearer` scheme.
+
+---
+
+## Passing Your API Key
+
+Requests missing the `Authorization` header, or containing an invalid key, will return an `HTTP 401 Unauthorized` response with RFC 9457 Problem Details:
+
+```json
+{
+  "type": "https://api.atlas-compiler.com/errors/invalid_credentials",
+  "title": "Invalid credentials",
+  "status": 401,
+  "detail": "A valid bearer credential is required.",
+  "code": "invalid_credentials"
+}
+```
+
+---
+
+## API Key Anatomy
+
+Atlas API keys follow a standard format:
+
+```text
+atlas_[43 base64url characters]
+```
+
+- **Prefix**: `atlas_` prefix identifying an Atlas API credential.
+- **Entropy**: 43 cryptographically random base64url characters generated using 256 bits of secure system entropy (total key length: 49 characters).
+- **Hashing**: Keys are hashed in storage using HMAC-SHA256 with rotating server-side pepper secrets. Atlas never stores raw API keys in plain text.
+
+---
+
+## Automatic Workspace Resolution
+
+When you send a request authenticated by an API key, Atlas automatically resolves the key's associated **workspace**, **billing account**, and **rate limits** from the cryptographic token.
+
+You do **not** need to manually pass a `workspaceId` in headers or URL paths for standard execution endpoints (`/v1/scrape`, `/v1/compile`, `/v1/map`, `/v1/crawls`, `/v1/batch/scrape`). The key itself establishes your operational tenancy.
+
+---
+
+## API Key Scopes
+
+Each API key can be restricted to specific capabilities for principle-of-least-privilege security:
+
+| Scope | Capability Description |
+| :--- | :--- |
+| `execute` | Allows invoking `/v1/scrape`, `/v1/compile`, `/v1/map`, `/v1/crawls`, and `/v1/batch/scrape`. |
+| `jobs:read` | Allows checking job status (`GET /v1/jobs/{id}`), polling results, and inspecting errors. |
+| `jobs:cancel` | Allows cancelling in-flight crawls or batch operations (`POST /v1/jobs/{id}/cancel`). |
+| `projects:read` | Allows querying project metadata and associated execution history. |
+| `usage:read` | Allows inspecting credit consumption ledgers and workspace balance. |
+
+  For automated production worker pipelines, generate an API key restricted solely to `execute` and `jobs:read`.
+
+---
+
+## Security Features
+
+### IP Allowlisting
+
+You can optionally lock an API key to specific IPv4 or IPv6 addresses or CIDR ranges in the Atlas Dashboard. If a request arrives from an unauthorized IP address, Atlas immediately rejects it with `HTTP 403 Forbidden` (`code: ip_not_allowed`).
+
+### Activity Monitoring
+
+Atlas tracks the last-used timestamp of every key in 15-minute activity buckets without adding database latency to your execution path. You can audit key utilization in real time from the dashboard.
+
+### Zero-Downtime Key Rotation
+
+To rotate credentials without downtime:
+1. Generate a new API key in the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under the **API Keys** section.
+2. Deploy the new key to your environment variables or secret manager.
+3. Verify that your applications are successfully authenticating with the new key.
+4. Revoke the old key in the dashboard.
+
+---
+
+## Environment Variable Standards
+
+Atlas SDKs automatically check for standard environment variables when no explicit key is provided in constructors:
+
+```bash
+# Standard environment variable read by all SDKs
+export ATLAS_API_KEY="atlas_your_api_key_here"
+
+# Optional project scoping
+export ATLAS_PROJECT_ID="prj_your_project_id"
+```
+
+---
+
+## Why Atlas
+
+URL: https://docs.atlas-compiler.com/concepts/why-atlas
+
+Summary: Why Atlas is engineered for ultra-low-latency edge processing, eliminating token bloat and headless browser overhead.
+
+Extracting clean web data for Large Language Models has historically forced engineering teams to choose between two flawed paradigms: **heavy containerized browsers** or **brittle static scrapers**.
+
+Atlas introduces a third paradigm: **edge-native web compilation**.
+
+---
+
+## The Scraping Spectrum
+
+```text
+[ Brittle & Primitive ]                      [ Balanced & Optimized ]                      [ Heavy & Sluggish ]
+   Static Regex / Scrapers                         ATLAS COMPILER                           Headless Browsers
+----------------------------------------------------------------------------------------------------------------
+• Sub-second latency                         • Sub-1.5s P50 latency                        • 5–15s latency per page
+• Breaks on modern layouts                   • Resilient structural parsing                • 500MB+ RAM per browser tab
+• Ingests 100% boilerplate                   • Strips 70–90% token overhead                • High VM infrastructure bills
+• No schema or token awareness               • Native Markdown AST + JSON                  • Prone to crashed browser processes
+```
+
+### 1. Heavy Headless Browsers (Puppeteer, Playwright, Selenium)
+
+Traditional scrapers spin up full Chromium or WebKit browser engines in heavy Linux containers. 
+
+While capable of rendering complex JavaScript, this approach suffers from severe operational drawbacks:
+- **Massive Resource Overhead**: Each browser tab consumes between 300 MB and 1 GB of memory. Scaling to thousands of pages requires large, expensive Kubernetes clusters.
+- **Excessive Latency**: Waiting for full browser bootstrap, font rendering, CSS styling, and animation frames inflates per-page latency to 5–15 seconds.
+- **Non-Deterministic Extraction**: Visual browsers don't output clean semantic text; they output visual rectangles. Converting rendered layouts back into markdown often results in mangled tables, broken code snippets, and interleaved advertisements.
+
+### 2. Basic Static Scrapers (BeautifulSoup, Cheerio, Regex)
+
+On the other extreme, lightweight script scrapers fetch raw HTML strings and apply naive regex or CSS selectors.
+- **High Boilerplate**: Without semantic understanding of document hierarchy, raw navigation menus, footer disclosures, cookie consent banners, and sidebar links are dumped directly into the output.
+- **Context Pollution**: The resulting markdown remains bloated with thousands of irrelevant tokens, exhausting context windows and driving up model inference bills.
+
+---
+
+## The Atlas Architecture: Edge-Native Compilation
+
+Atlas operates as a **deterministic compilation layer deployed at the edge**, globally distributed within milliseconds of target web servers.
+
+Instead of running a full graphical display engine, Atlas processes web documents as structured document trees directly in lightweight edge runtime memory:
+
+1. **Near-Zero Cold Starts**: Requests execute instantly on serverless edge nodes without the 3–5 second boot delay of headless containers.
+2. **Sub-1.5s P50 Latency**: By analyzing document structure and pruning noise in streaming memory passes, Atlas compiles pages up to 10x faster than containerized browsers.
+3. **Deterministic Token Compression**: Boilerplate elements (headers, footers, ad slots, tracking beacons, navigation chrome) are structurally identified and eliminated, delivering a **39% to 45% token reduction** compared to competitor extractors.
+4. **Preserved Structural Integrity**: Substantive elements—such as markdown tables, multi-language code blocks, blockquotes, and nested lists—are preserved with exact AST fidelity.
+
+---
+
+## Architectural Comparison Matrix
+
+| Architectural Dimension | Heavy Headless Browsers | Basic HTML Scrapers | Atlas Edge Compiler |
+| :--- | :--- | :--- | :--- |
+| **P50 Latency** | 5,000 – 15,000 ms | 300 – 800 ms | **1,308 ms** |
+| **Memory Footprint** | 500 MB+ per page | ~15 MB | **< 30 MB (ephemeral)** |
+| **Token Reduction vs. HTML** | Variable (often noisy) | None (0%) | **70% – 90%** |
+| **Table & Code AST Fidelity** | Prone to visual corruption | Poor | **100% Deterministic** |
+| **Infrastructure Overhead** | High (dedicated VM fleets) | Low | **Zero (fully managed API)** |
+| **Data Retention (ZDR)** | Retained on disk | Depends on setup | **Zero Data Retention** |
+
+---
+
+## Dual-Audience Output
+
+Every compilation pass produces dual-purpose artifacts:
+
+- **For Human Readers**: Beautiful, clean GitHub Flavored Markdown that renders flawlessly in documentation viewers and chat interfaces.
+- **For AI Agents**: Rich document metadata (canonical URL, page title, publish date, language, confidence score) and structured content graphs optimized for semantic chunking and RAG ingestion.
+
+---
+
+## The Compiler Pipeline
+
+URL: https://docs.atlas-compiler.com/concepts/compiler-pipeline
+
+Summary: The 4-stage transformation lifecycle: Fetch, Structural Analysis, Content Extraction & Token Pruning, and Schema Structuring.
+
+When you submit a URL to Atlas, it passes through a 4-stage transformation pipeline executed entirely within ephemeral memory buffers.
+
+```
+Incoming Request
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Ingestion & Fetch                                        │
+│    • Edge-routed HTTP fetch with TLS 1.3                    │
+│    • Transparent redirect resolution & canonical discovery  │
+│    • Charset normalization (UTF-8) & decompression (Brotli) │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Structural Analysis                                      │
+│    • In-memory document tree construction                   │
+│    • Semantic boundary detection (Main Content vs Shell)    │
+│    • Identification of tabular data & code blocks           │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Content Extraction & Token Pruning                       │
+│    • Removal of ad scripts, tracking tags, and iframes      │
+│    • Demotion of navigation menus, footers, and banners     │
+│    • Text density analysis & whitespace normalization       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. Schema Structuring & Markdown Generation                 │
+│    • Deterministic GitHub Flavored Markdown (GFM) synthesis │
+│    • Document metadata extraction (title, author, date)     │
+│    • Structured JSON metadata assembly                      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+Clean Markdown & Metadata Response (`, ``, ``, ``, ``, and tracking pixels.
+- **Chrome & Interstitials**: ``, ``, ``, modal dialogs, cookie consent banners, and promotional popups.
+- **Embedded Media Wrappers**: Decorative SVGs, tracking iframes, advertisement placeholders, and social share widgets.
+
+### Elements Preserved:
+- **Headings**: `` through `` maintaining exact hierarchical nesting.
+- **Code & Syntax**: Fenced code blocks with language identifiers (`typescript`, `python`, `sql`, etc.) and inline code snippets.
+- **Tables**: Markdown table formatting with preserved column alignments.
+- **Rich Prose**: Bulleted and numbered lists, blockquotes, bold/italic formatting, and hyperlinked inline references.
+
+---
+
+## 4. Schema Structuring & Markdown Generation
+
+In the final stage, the validated document graph is synthesized into client-facing outputs:
+
+1. **GitHub Flavored Markdown (GFM)**: Clean, deterministic markdown string optimized for LLM token ingestion.
+2. **Document Metadata**: Structured key-value object containing:
+   - `title`: Extracted page title resolved from OpenGraph, Twitter tags, and primary heading tags.
+   - `canonicalUrl`: The final resolved URL.
+   - `description`: Meta description or extracted executive summary.
+   - `author`: Article author if detected in semantic markup.
+   - `publishedDate`: ISO 8601 timestamp of publication or last update.
+   - `language`: BCP 47 language tag (e.g., `en`, `es`, `de`).
+   - `extractionConfidence`: Probabilistic score (`0.0` to `1.0`) indicating extraction quality.
+
+---
+
+## Output Models
+
+URL: https://docs.atlas-compiler.com/concepts/output-models
+
+Summary: Detailed specification for GitHub Flavored Markdown (GFM), structured metadata, and intermediate representations.
+
+Atlas produces deterministic, structured outputs designed for immediate consumption by language models, vector databases, and RAG pipelines.
+
+---
+
+## 1. GitHub Flavored Markdown (GFM)
+
+The primary content payload is standard GitHub Flavored Markdown returned under `data.markdown`.
+
+### Key Formatting Guarantees:
+- **Heading Hierarchy**: Preserves logical `h1` through `h6` nesting without skipping levels.
+- **Fenced Code Blocks**: Syntax-highlighted code blocks with detected language specifiers (e.g., ` ```typescript `, ` ```python `).
+- **Tabular Data**: Multi-column HTML tables are converted into clean GFM pipe tables with aligned headers:
+  ```markdown
+  | Feature | Status | Speed |
+  | :--- | :--- | :--- |
+  | Scrape | Active | < 1.5s |
+  | Crawl | Active | Async |
+  ```
+- **Normalized Links**: Relative URLs (`/docs/api`) are automatically resolved against the document's canonical base URL into fully qualified absolute URLs (`https://example.com/docs/api`).
+- **Whitespace Sanitation**: Redundant line breaks, trailing spaces, and non-breaking spaces (`&nbsp;`) are normalized into standard markdown paragraphs.
+
+---
+
+## 2. Document Metadata Schema
+
+Extracted alongside markdown content under the `metadata` key:
+
+```json
+{
+  "metadata": {
+    "title": "Understanding Neural Network Optimizers",
+    "canonicalUrl": "https://ai.example.com/articles/optimizers",
+    "author": "Dr. Elena Rostova",
+    "description": "A comprehensive deep dive into SGD, AdamW, and modern second-order optimization techniques.",
+    "publishedDate": "2026-04-12T14:30:00.000Z",
+    "extractionConfidence": 0.96,
+    "documentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "language": "en"
+  }
+}
+```
+
+### Field Definitions
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `title` | `string` | The extracted document title resolved from OpenGraph, meta tags, and main heading. |
+| `canonicalUrl` | `string` | The canonical destination URL following redirects and canonical link tags. |
+| `author` | `string \| null` | The identified author or organization from structured markup. |
+| `description` | `string \| null` | The page summary or meta description. |
+| `publishedDate` | `string \| null` | ISO 8601 timestamp of publication or last revision. |
+| `extractionConfidence` | `number` | Score between `0.0` and `1.0` reflecting the semantic coherence of the extraction. |
+| `documentHash` | `string` | SHA-256 hash of the extracted substantive text for change detection and deduplication. |
+| `language` | `string \| null` | BCP 47 language code (e.g., `en`, `es`, `zh`). |
+
+---
+
+## 3. Intermediate Representation (IR)
+
+When invoking `/v1/compile` or requesting `formats: ["markdown", "ir"]`, Atlas returns a content graph:
+
+```json
+{
+  "ir": {
+    "version": "1.0",
+    "contentGraph": {
+      "nodes": {
+        "node_1": {
+          "id": "node_1",
+          "type": "heading",
+          "level": 1,
+          "content": "Understanding Neural Network Optimizers",
+          "parent": "root",
+          "children": []
+        },
+        "node_2": {
+          "id": "node_2",
+          "type": "paragraph",
+          "content": "Optimization algorithms are the engine of machine learning...",
+          "parent": "root",
+          "children": []
+        }
+      },
+      "readingOrder": ["node_1", "node_2"]
+    }
+  }
+}
+```
+
+The Intermediate Representation is ideal for **chunking algorithms** in RAG architectures, allowing you to split documents along semantic node boundaries rather than arbitrary character counts.
+
+---
+
+## 4. Usage Object
+
+Every API response includes a `usage` object detailing credit consumption:
+
+```json
+{
+  "usage": {
+    "credits": 1
+  }
+}
+```
+
+- Standard synchronous scrapes consume **1 credit**.
+- Long-running crawls and batch requests bill credits per successfully compiled page.
+
+---
+
+## Security & Zero Data Retention
+
+URL: https://docs.atlas-compiler.com/concepts/security-zdr
+
+Summary: How Atlas guarantees ephemeral memory processing, strict SSRF protection, and Zero Data Retention (ZDR).
+
+Atlas is engineered for security-conscious engineering teams, enterprise compliance, and privacy-first AI agent architectures. 
+
+This document outlines our precise data lifecycle, Zero Data Retention architecture, and network security protections.
+
+---
+
+## Zero Data Retention (ZDR) Architecture
+
+In standard synchronous compilation (`POST /v1/scrape`), Atlas operates in strict **Zero Data Retention (ZDR)** mode:
+
+```
+Target Website (Origin)
+       │  TLS 1.3
+       ▼
+┌────────────────────────────────────────────────────────┐
+│ Atlas Edge Worker (Ephemeral Memory Buffer)            │
+│  • In-memory DOM parsing                               │
+│  • In-memory noise reduction                           │
+│  • Streaming response generation                       │
+└───────────────────────┬────────────────────────────────┘
+                        │  TLS 1.3 Streaming Response
+                        ▼
+             Your Application Server
+```
+
+### Data Lifecycle Boundaries:
+1. **Volatile Memory Only**: Inbound HTML and extracted markdown are held strictly in ephemeral edge worker memory during the duration of the request.
+2. **Zero Disk or Database Persistence**: In ZDR mode, Atlas writes zero bytes of target web content, HTML, or compiled markdown to persistent disk storage, object stores (such as R2), or databases.
+3. **Immediate Memory Reclamation**: The moment the HTTP response stream terminates, the worker execution scope is destroyed and volatile memory is reclaimed by the runtime.
+4. **No Model Training**: Atlas never uses customer data, requested URLs, or extracted web content to train machine learning models.
+
+---
+
+## Telemetry & Logging Policy
+
+To maintain service reliability while respecting privacy, Atlas maintains a strict separation between operational telemetry and customer payloads:
+
+| Data Class | Logged? | Description & Retention |
+| :--- | :--- | :--- |
+| **Operational Metrics** | **Yes** | Request timestamp, HTTP status code, P50 latency, billed credit count, and workspace identifier. Retained for 30 days for billing and abuse prevention. |
+| **Error Problem Codes** | **Yes** | Standard RFC 9457 error codes (e.g., `DNS_RESOLUTION_FAILED`, `RATE_LIMITED`) without payload bodies. |
+| **Extracted Markdown** | **NEVER** | The compiled markdown content is never captured in application logs. |
+| **Raw Origin HTML** | **NEVER** | Raw source HTML retrieved from origin servers is never logged or stored. |
+| **Customer Secrets** | **NEVER** | API keys and authorization headers are never written to log files. |
+
+---
+
+## Network Security & SSRF Hardening
+
+Outbound requests to the public web require rigorous network defenses. Atlas enforces active Server-Side Request Forgery (SSRF) controls on all target URLs:
+
+### Blocked Target Destinations:
+- **Loopback Addresses**: `127.0.0.0/8`, `localhost`, `::1`
+- **Private Subnets (RFC 1918)**: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
+- **Link-Local & Cloud Metadata**: `169.254.169.254`, `169.254.0.0/16`, `fe80::/10`
+- **Carrier-Grade NAT & Test Nets**: `100.64.0.0/10`, `192.0.2.0/24`, `198.51.100.0/24`
+
+Any request attempting to target private or internal IP addresses is rejected immediately before socket connection with `HTTP 400 Bad Request` (`code: invalid_target_url`).
+
+---
+
+## Encryption Standards
+
+- **In-Transit Encryption**: All public ingress traffic to `api.atlas-compiler.com` and all outbound egress requests to origin web servers require **TLS 1.3** (or TLS 1.2 minimum).
+- **Authentication Key Protection**: API keys are hashed in storage using keyed HMAC-SHA256 digests with rotating server-side pepper secrets. Raw keys are never accessible to database operators.
+
+---
+
+## Scrape a Page
+
+URL: https://docs.atlas-compiler.com/guides/scrape
+
+Summary: How to synchronously compile single web pages into clean, token-efficient markdown using POST /v1/scrape.
+
+The `/v1/scrape` endpoint is the fastest way to extract web content with Atlas. It processes single web pages **synchronously** with sub-1.5s latency, returning clean GitHub Flavored Markdown and structured metadata directly in the HTTP response.
+
+---
+
+## When to Use `/v1/scrape`
+
+- **Interactive LLM Workflows**: When an end-user or AI assistant provides a link and needs an immediate answer.
+- **Low-Latency RAG Pipelines**: When compiling web articles, documentation pages, or blog posts in real time.
+- **Zero Data Retention (ZDR)**: For sensitive workloads where target page bodies must never be persisted to disk.
+
+---
+
+## Code Example
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/blog/post-1",
+    "formats": ["markdown"]
+  }'
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.scrape({
+  url: 'https://example.com/blog/post-1',
+  formats: ['markdown'],
+});
+
+if (response.status === 200) {
+  const { data, metadata, usage } = response.value;
+  console.log('Title:', metadata.title);
+  console.log('Markdown:\n', data.markdown);
+  console.log('Credits Used:', usage.credits);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.scrape({
+        "url": "https://example.com/blog/post-1",
+        "formats": ["markdown"],
+    })
+
+    if response.status == 200:
+        data = response.value["data"]
+        metadata = response.value["metadata"]
+        print("Title:", metadata["title"])
+        print("Markdown:\n", data["markdown"])
+        print("Credits:", response.value["usage"]["credits"])
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com/blog/post-1",
+	})
+	if err != nil {
+		log.Fatalf("Scrape error: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Title: %s\n", res.Response200.Metadata.Title)
+		fmt.Printf("Markdown:\n%s\n", res.Response200.Data.Markdown)
+		fmt.Printf("Credits: %d\n", res.Response200.Usage.Credits)
+	}
+}
+```
+
+---
+
+## Request Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The fully qualified public web URL (`http://` or `https://`) to compile. |
+| `formats` | `string[]` | No | `["markdown"]` | Desired output formats. Supported values: `"markdown"`, `"ir"`, `"metadata"`. |
+| `cache` | `object` | No | — | Optional caching behavior settings. |
+| `cache.mode` | `string` | No | `"default"` | Cache strategy: `"default"` (respect standard TTL), `"force-refresh"` (bypass cache), or `"only-if-cached"`. |
+| `cache.maxAgeSeconds` | `integer` | No | `3600` | Maximum acceptable cache age in seconds. |
+
+---
+
+## Response Structure
+
+A successful request returns `HTTP 200 OK` with JSON:
+
+```json
+{
+  "data": {
+    "markdown": "# Article Headline\n\nSubstantive article content with preserved [links](https://example.com) and formatting.",
+    "links": [
+      "https://example.com/about",
+      "https://example.com/pricing"
+    ]
+  },
+  "metadata": {
+    "title": "Article Headline",
+    "canonicalUrl": "https://example.com/blog/post-1",
+    "author": "Jane Doe",
+    "description": "Executive summary of the article.",
+    "publishedDate": "2026-06-15T08:00:00.000Z",
+    "extractionConfidence": 0.97,
+    "documentHash": "4a7d1ed414474e4033ac29ccb8653d9b",
+    "language": "en"
+  },
+  "usage": {
+    "credits": 1
+  }
+}
+```
+
+---
+
+## Handling Dynamic SPAs
+
+Atlas automatically resolves client-rendered Single-Page Applications (React, Vue, Next.js, Svelte). If a target page requires client-side hydration, Atlas waits for the primary DOM tree to stabilize before running the extraction pass, ensuring complete content extraction without requiring manual browser configuration.
+
+---
+
+## Deep Compile
+
+URL: https://docs.atlas-compiler.com/guides/compile
+
+Summary: How to perform deep structural analysis, AST graph extraction, and asynchronous execution with POST /v1/compile.
+
+The `/v1/compile` endpoint performs full structural compilation of web content. Unlike `/v1/scrape`, `/v1/compile` extracts complete **Intermediate Representation (IR)** content graphs and supports seamless transitions between synchronous execution (`200 OK`) and asynchronous queued processing (`202 Accepted`).
+
+---
+
+## Idempotency Protection
+
+---
+
+## Code Example
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/compile \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Idempotency-Key: 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/documentation",
+    "formats": ["markdown", "ir"]
+  }'
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+// Compile automatically generates an execution UUIDv4 idempotency key
+const response = await client.compile({
+  url: 'https://example.com/documentation',
+  formats: ['markdown', 'ir'],
+});
+
+if (response.status === 200) {
+  // Synchronous compilation
+  console.log('Markdown:\n', response.value.markdown);
+  console.log('IR Nodes:', Object.keys(response.value.ir.contentGraph.nodes).length);
+} else if (response.status === 202) {
+  // Asynchronous execution: wait for job completion
+  const jobId = response.value.id;
+  console.log(`Job queued: ${jobId}. Polling for completion...`);
+  
+  const job = await client.waitForJob(jobId);
+  const results = await client.listJobResults(jobId);
+  console.log('Compiled Markdown:\n', results.value.data[0]?.markdown);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.compile({
+        "url": "https://example.com/documentation",
+        "formats": ["markdown", "ir"],
+    })
+
+    if response.status == 200:
+        print("Markdown:\n", response.value["markdown"])
+        print("IR Version:", response.value["ir"]["version"])
+    elif response.status == 202:
+        job_id = response.value["id"]
+        print(f"Job queued: {job_id}. Polling...")
+        job = client.wait_for_job(job_id)
+        results = client.list_job_results(job_id)
+        print("Compiled Markdown:\n", results.value["data"][0]["markdown"])
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.Compile(context.Background(), atlas.CompileUrlRequest{
+		Url:     "https://example.com/documentation",
+		Formats: []string{"markdown", "ir"},
+	})
+	if err != nil {
+		log.Fatalf("Compile error: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Markdown:\n%s\n", res.Response200.Markdown)
+		fmt.Printf("Credits: %d\n", res.Response200.Usage.Credits)
+	} else if res.Response202 != nil {
+		jobID := res.Response202.Id
+		fmt.Printf("Job queued: %s. Polling...\n", jobID)
+		job, _, err := client.WaitForJob(context.Background(), jobID, time.Second, 60*time.Second)
+		if err != nil {
+			log.Fatalf("Job failed: %v", err)
+		}
+		fmt.Printf("Job status: %s\n", job.Status)
+	}
+}
+```
+
+---
+
+## Request Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Target URL to compile. |
+| `formats` | `string[]` | No | `["markdown", "ir"]` | Array of desired output models: `"markdown"`, `"ir"`, `"metadata"`. |
+| `cache` | `object` | No | — | Caching policy (`mode`, `maxAgeSeconds`). |
+
+---
+
+## Synchronous vs. Asynchronous Behavior
+
+- **HTTP 200 OK**: For most web pages, `/v1/compile` completes within 1.5 seconds and returns the compiled markdown and IR directly.
+- **HTTP 202 Accepted**: For complex, multi-frame pages or under peak concurrency, Atlas accepts the compilation task and queues it for asynchronous execution. The response includes an execution job ID (`id`), which can be queried via `GET /v1/jobs/{jobId}`.
+
+---
+
+## Map Domain Topology
+
+URL: https://docs.atlas-compiler.com/guides/map
+
+Summary: Discover, analyze, and heuristically rank all reachable URLs across a website using POST /v1/map.
+
+The `/v1/map` endpoint discovers and analyzes all reachable pages across an entire domain in seconds. Rather than blindly scraping every link, Atlas combines sitemap parsing, homepage hierarchy analysis, and semantic route classification to produce a prioritized topology map.
+
+---
+
+## When to Use `/v1/map`
+
+- **Sitemap & Architecture Discovery**: Understand the structure of a site before initiating a multi-page crawl.
+- **Route Prioritization**: Automatically identify high-value documentation, product, and API guides while demoting pagination noise.
+- **Context Budget Estimation**: Calculate estimated total tokens and compile time across an entire documentation site.
+
+---
+
+## Code Example
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/map \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "sitemap": "include",
+    "limit": 500
+  }'
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.map({
+  url: 'https://example.com',
+  sitemap: 'include',
+  limit: 500,
+});
+
+if (response.status === 200) {
+  const { summary, links } = response.value;
+  console.log('Framework Detected:', summary.framework);
+  console.log('Estimated Pages:', summary.estimatedPages);
+  console.log('Estimated Tokens:', summary.estimatedTokens);
+  
+  // Filter for high-priority recommended routes
+  const recommendedLinks = links.filter((l) => l.recommended);
+  console.log(`Discovered ${recommendedLinks.length} recommended pages:`);
+  recommendedLinks.forEach((link) => console.log(`- [Priority ${link.priority}] ${link.url}`));
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.map({
+        "url": "https://example.com",
+        "sitemap": "include",
+        "limit": 500,
+    })
+
+    if response.status == 200:
+        summary = response.value["summary"]
+        links = response.value["links"]
+        print(f"Website Type: {summary['websiteType']} (Framework: {summary['framework']})")
+        print(f"Total Discovered Links: {len(links)}")
+        
+        for link in links[:5]:
+            print(f"- {link['url']} (Confidence: {link['confidence']})")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.Map(context.Background(), atlas.MapUrlRequest{
+		Url:     "https://example.com",
+		Sitemap: atlas.String("include"),
+		Limit:   atlas.Int(500),
+	})
+	if err != nil {
+		log.Fatalf("Map error: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Detected Framework: %s\n", *res.Response200.Summary.Framework)
+		fmt.Printf("Estimated Pages: %d\n", res.Response200.Summary.EstimatedPages)
+		fmt.Printf("Total Links Discovered: %d\n", len(res.Response200.Links))
+	}
+}
+```
+
+---
+
+## Request Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Target domain or base URL (e.g., `https://docs.example.com`). |
+| `sitemap` | `string` | No | `"include"` | Sitemap discovery policy: `"include"` (sitemap + HTML discovery), `"skip"` (HTML only), or `"only"` (sitemap only). |
+| `includeSubdomains` | `boolean` | No | `false` | When `true`, links to other subdomains of the target root will be mapped. |
+| `ignoreQueryParameters` | `boolean` | No | `false` | When `true`, URL query parameters (`?ref=...`) are stripped to prevent duplicate routes. |
+| `limit` | `integer` | No | `1000` | Maximum number of URLs to return (1 to 10,000). |
+| `exhaustive` | `boolean` | No | `false` | When `true`, performs an exhaustive discovery pass across all internal hierarchies. |
+
+---
+
+## Response Structure
+
+```json
+{
+  "summary": {
+    "framework": "nextjs",
+    "websiteType": "Documentation",
+    "language": "en-US",
+    "estimatedPages": 48,
+    "recommendedEntryPoint": "https://example.com/docs",
+    "recommendedDepth": 2,
+    "estimatedCompileTime": "12 seconds",
+    "estimatedTokens": "82K tokens",
+    "sitemapCoverage": 92.5,
+    "discoveryConfidence": 95.0
+  },
+  "links": [
+    {
+      "url": "https://example.com/docs/quickstart",
+      "title": "Quickstart Guide",
+      "description": "Get started in 5 minutes.",
+      "sources": ["sitemap", "navigation"],
+      "priority": 100,
+      "confidence": 98,
+      "depth": 1,
+      "recommended": true,
+      "incomingLinks": 8
+    }
+  ]
+}
+```
+
+### Route Prioritization Scoring
+
+Atlas assigns each link a `priority` score between `0` and `100`:
+- **90–100**: Core documentation, guide pages, and primary API references.
+- **70–89**: Secondary conceptual guides, changelogs, and category landing pages.
+- **Below 50**: Administrative disclosures, login screens, legal notices, and auxiliary pagination.
+
+---
+
+## Crawl Websites
+
+URL: https://docs.atlas-compiler.com/guides/crawl
+
+Summary: How to orchestrate distributed multi-page website crawls with path filtering using POST /v1/crawls.
+
+The `/v1/crawls` endpoint executes distributed, multi-page website crawls. Atlas follows links up to your specified `maxDepth` or `maxPages` limits, applies glob path filters (`includePaths`, `excludePaths`), and delivers compiled markdown artifacts through asynchronous job polling or webhooks.
+
+---
+
+## Idempotency Protection
+
+---
+
+## Code Example
+
+```bash cURL
+# 1. Start Crawl Job
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/docs",
+    "maxPages": 50,
+    "includePaths": ["/docs/**"],
+    "excludePaths": ["/docs/v1-archive/**"]
+  }'
+
+# Returns HTTP 202 Accepted:
+# {"id": "job_01h7x...","status": "queued"}
+
+# 2. Check Job Status
+curl -X GET https://api.atlas-compiler.com/v1/jobs/job_01h7x... \
+  -H "Authorization: Bearer atlas_your_api_key_here"
+
+# 3. Retrieve Compiled Results
+curl -X GET https://api.atlas-compiler.com/v1/jobs/job_01h7x.../results \
+  -H "Authorization: Bearer atlas_your_api_key_here"
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+// 1. Submit asynchronous crawl job
+const response = await client.createCrawl({
+  url: 'https://example.com/docs',
+  maxPages: 50,
+  includePaths: ['/docs/**'],
+  excludePaths: ['/docs/v1-archive/**'],
+});
+
+const jobId = response.value.id;
+console.log(`Crawl job started: ${jobId}`);
+
+// 2. Poll helper automatically waits until status === 'ready'
+const job = await client.waitForJob(jobId);
+console.log(`Crawl completed! ${job.progress?.completedItems} pages compiled.`);
+
+// 3. Page through results
+const results = await client.listJobResults(jobId, { limit: 50 });
+for (const page of results.value.data) {
+  console.log(`- ${page.metadata.title} (${page.metadata.canonicalUrl})`);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    # 1. Start crawl
+    response = client.create_crawl({
+        "url": "https://example.com/docs",
+        "maxPages": 50,
+        "includePaths": ["/docs/**"],
+    })
+
+    job_id = response.value["id"]
+    print(f"Crawl job started: {job_id}")
+
+    # 2. Wait for completion
+    job = client.wait_for_job(job_id)
+    print(f"Completed {job['progress']['completedItems']} pages.")
+
+    # 3. Fetch results
+    results = client.list_job_results(job_id, limit=50)
+    for page in results.value["data"]:
+        print(f"- {page['metadata']['title']}")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	ctx := context.Background()
+
+	maxPages := 50
+	// 1. Start crawl
+	res, _, err := client.CreateCrawl(ctx, atlas.CreateCrawlRequest{
+		Url:          "https://example.com/docs",
+		MaxPages:     &maxPages,
+		IncludePaths: []string{"/docs/**"},
+	})
+	if err != nil {
+		log.Fatalf("Crawl submission failed: %v", err)
+	}
+
+	jobID := res.Response202.Id
+	fmt.Printf("Job submitted: %s\n", jobID)
+
+	// 2. Wait for job
+	job, _, err := client.WaitForJob(ctx, jobID, time.Second, 60*time.Second)
+	if err != nil {
+		log.Fatalf("Job polling failed: %v", err)
+	}
+	fmt.Printf("Job finished with status: %s\n", job.Status)
+
+	// 3. Fetch results
+	limit := 50
+	results, _, err := client.ListJobResults(ctx, jobID, nil, &limit)
+	if err != nil {
+		log.Fatalf("Failed to fetch results: %v", err)
+	}
+	fmt.Printf("Fetched %d compiled pages.\n", len(results.Data))
+}
+```
+
+---
+
+## Request parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Root starting URL for the crawl. |
+| `maxPages` | `integer` | No | `100` | Maximum number of pages to compile (1 to 10,000). |
+| `includePaths` | `string[]` | No | `[]` | Glob patterns to restrict crawl boundaries (e.g., `["/docs/**"]`). |
+| `excludePaths` | `string[]` | No | `[]` | Glob patterns to omit from the crawl (e.g., `["/blog/archive/**"]`). |
+| `maxDepth` | `integer` | No | `10` | Maximum link traversal depth from the entry URL. |
+| `sitemap` | `string` | No | `"include"` | Sitemap discovery policy: `"include"`, `"skip"`, or `"only"`. |
+| `includeSubdomains` | `boolean` | No | `false` | When `true`, follows links across subdomains. |
+| `webhook` | `string \| object` | No | — | Push notification target: a destination HTTPS URL string, an object with `url`, `events`, and `metadata`, or `{ endpointId: string }`. |
+
+---
+
+## Using webhooks with crawls
+
+Instead of polling `waitForJob`, attach a webhook to receive real-time push notifications when your crawl completes or as pages are compiled:
+
+```bash Inline webhook (Terminal events)
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/docs",
+    "maxPages": 50,
+    "webhook": "https://api.your-domain.com/webhooks/atlas"
+  }'
+```
+
+```bash Streaming page webhook (Opt-in)
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/docs",
+    "maxPages": 50,
+    "webhook": {
+      "url": "https://api.your-domain.com/webhooks/atlas",
+      "events": ["job.ready", "crawl.page_completed"],
+      "metadata": {
+        "caller": "docs-sync-worker"
+      }
+    }
+  }'
+```
+
+```typescript TypeScript SDK
+const response = await client.createCrawl({
+  url: 'https://example.com/docs',
+  maxPages: 50,
+  webhook: {
+    url: 'https://api.your-domain.com/webhooks/atlas',
+    events: ['job.ready', 'job.failed'],
+    metadata: { env: 'production' },
+  },
+});
+```
+
+See the [Webhooks Guide](/guides/webhooks) for event schemas, replay tolerance, and cryptographic HMAC signature verification.
+
+---
+
+## Job lifecycle states
+
+```
+[queued] ──► [running] ──► [ingesting] ──► [ready]
+    │             │              │
+    └─────────────┴──────────────┴──────► [failed] / [cancelled]
+```
+
+- **`queued`**: Job accepted and waiting in worker queue.
+- **`running`**: Crawl workers are actively fetching and compiling pages.
+- **`ingesting`**: Compilations complete; artifacts are being structured and indexed.
+- **`ready`**: Crawl finished. All compiled markdown pages are ready for download.
+- **`failed`**: The crawl encountered an unrecoverable failure (e.g., target domain offline).
+- **`cancelled`**: Job was cancelled via `DELETE /v1/jobs/{jobId}`.
+
+---
+
+## Batch Extraction
+
+URL: https://docs.atlas-compiler.com/guides/batch
+
+Summary: How to process bounded multi-URL compilation jobs concurrently with POST /v1/batch/scrape.
+
+When you have a known list of URLs to compile, the `/v1/batch/scrape` endpoint allows you to submit up to 1,000 URLs in a single request. Atlas distributes the compilation workload across edge workers and aggregates results into a unified job artifact.
+
+---
+
+## Idempotency Protection
+
+---
+
+## Code Example
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/batch/scrape \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Idempotency-Key: 7f3a9e22-1b4c-4a3d-9e12-8c9a3d4e5f6a" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com/page-1",
+      "https://example.com/page-2",
+      "https://example.com/page-3"
+    ],
+    "formats": ["markdown"]
+  }'
+```
+
+```typescript TypeScript
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.createBatch({
+  urls: [
+    'https://example.com/page-1',
+    'https://example.com/page-2',
+    'https://example.com/page-3',
+  ],
+  formats: ['markdown'],
+});
+
+const jobId = response.value.id;
+console.log(`Batch job queued: ${jobId}`);
+
+// Wait for batch completion
+const job = await client.waitForJob(jobId);
+console.log(`Batch completed: ${job.progress?.completedItems} succeeded, ${job.progress?.failedItems} failed.`);
+
+// Fetch batch results
+const results = await client.listJobResults(jobId);
+results.value.data.forEach((item) => {
+  console.log(`- ${item.metadata.title}: ${item.markdown.slice(0, 100)}...`);
+});
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.create_batch({
+        "urls": [
+            "https://example.com/page-1",
+            "https://example.com/page-2",
+            "https://example.com/page-3",
+        ],
+        "formats": ["markdown"],
+    })
+
+    job_id = response.value["id"]
+    print(f"Batch queued: {job_id}")
+
+    job = client.wait_for_job(job_id)
+    print(f"Completed: {job['progress']['completedItems']} succeeded.")
+
+    results = client.list_job_results(job_id)
+    for item in results.value["data"]:
+        print(f"- {item['metadata']['title']}")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	ctx := context.Background()
+
+	res, _, err := client.CreateBatch(ctx, atlas.CreateBatchRequest{
+		Urls: []string{
+			"https://example.com/page-1",
+			"https://example.com/page-2",
+		},
+		Formats: []string{"markdown"},
+	})
+	if err != nil {
+		log.Fatalf("Batch failed: %v", err)
+	}
+
+	jobID := res.Response202.Id
+	fmt.Printf("Batch job submitted: %s\n", jobID)
+
+	job, _, err := client.WaitForJob(ctx, jobID, time.Second, 60*time.Second)
+	if err != nil {
+		log.Fatalf("Batch failed: %v", err)
+	}
+	fmt.Printf("Status: %s\n", job.Status)
+}
+```
+
+---
+
+## Request parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `urls` | `string[]` | **Yes** | — | Array of 1 to 1,000 public web URLs to compile. |
+| `formats` | `string[]` | No | `["markdown"]` | Desired output formats (`"markdown"`, `"ir"`, `"metadata"`). |
+| `webhook` | `string \| object` | No | — | Push notification target: a destination HTTPS URL string, an object with `url`, `events`, and `metadata`, or `{ endpointId: string }`. |
+| `cache` | `object` | No | — | Caching options (`mode`, `maxAgeSeconds`). |
+
+---
+
+## Using webhooks with batches
+
+For large batch compilations (up to 1,000 URLs), attach a webhook to receive an automated notification the moment the entire batch finishes processing:
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/batches \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com/page-1",
+      "https://example.com/page-2"
+    ],
+    "webhook": {
+      "url": "https://api.your-domain.com/webhooks/atlas",
+      "events": ["job.ready", "job.failed"],
+      "metadata": {
+        "batchSource": "nightly-catalog-sync"
+      }
+    }
+  }'
+```
+
+```typescript TypeScript SDK
+const batch = await client.createBatch({
+  urls: [
+    'https://example.com/page-1',
+    'https://example.com/page-2',
+  ],
+  webhook: 'https://api.your-domain.com/webhooks/atlas',
+});
+```
+
+  **Aggregated terminal callback**: Batch jobs dispatch a single aggregated terminal callback (`job.ready` or `job.failed`) once all individual URLs in the batch have been compiled or isolated.
+
+---
+
+## Handling partial failures
+
+In batch operations, a single failing URL (such as a 404 Not Found or upstream timeout) **never aborts the entire batch**. 
+
+Atlas executes every URL independently:
+- Successfully compiled pages are stored and returned via `GET /v1/jobs/{jobId}/results`.
+- Failed URLs are isolated and reported with detailed error diagnostics via `GET /v1/jobs/{jobId}/errors`.
+- Your credit balance is billed strictly for **successfully compiled pages**.
+
+---
+
+## Webhooks
+
+URL: https://docs.atlas-compiler.com/guides/webhooks
+
+Summary: Configure webhooks, receive real-time crawl and batch event notifications, and verify Standard Webhooks signatures.
+
+When running multi-page crawls or large batch compilations, waiting on synchronous HTTP connections is inefficient. Atlas provides **automated webhooks** to notify your servers the moment an asynchronous execution reaches a terminal state or compiles a page.
+
+Atlas follows the open [Standard Webhooks](https://standardwebhooks.com) specification, providing timestamp-based replay protection, HMAC-SHA256 signatures, and a 24-hour dual-signature grace period for zero-downtime secret rotation.
+
+---
+
+## Webhook delivery architecture
+
+```
+Atlas Crawl / Batch Job
+          │
+          ▼ State transition (job.ready, crawl.page_completed, etc.)
+┌────────────────────────────────────────────────────────┐
+│ Atlas Webhook Gateway                                  │
+│  • Enforces anti-SSRF security & public HTTPS egress   │
+│  • Computes Standard Webhooks HMAC-SHA256 signature    │
+│  • Signs message ID, timestamp, and raw payload        │
+│  • Dispatches HTTP POST with TLS 1.3                   │
+└───────────────────────┬────────────────────────────────┘
+                        │ HTTP POST with webhook-id, webhook-signature
+                        ▼
+               Your Webhook Receiver
+         (Returns HTTP 2xx within 10 seconds)
+```
+
+---
+
+## Integration models
+
+Atlas supports three ways to configure webhooks depending on your architecture:
+
+### 1. Shorthand inline URL
+
+For simple workflows, supply a destination URL string directly in your `POST /v1/crawls` or `POST /v1/batches` request.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 50,
+  "webhook": "https://api.your-domain.com/webhooks/atlas"
+}
+```
+
+- **Events delivered**: Default terminal events (`job.ready`, `job.failed`, `job.cancelled`).
+- **Signing secret**: Signed with your **Workspace default webhook secret** (found in the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under **Webhooks**).
+- **Streaming events**: Streaming page events (`crawl.page_completed`) are suppressed by default.
+
+### 2. Structured inline webhook
+
+To filter events or attach custom tracking metadata to callbacks, pass an object with `url`, `events`, and `metadata`.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 50,
+  "webhook": {
+    "url": "https://api.your-domain.com/webhooks/atlas",
+    "events": ["job.ready", "job.failed"],
+    "metadata": {
+      "environment": "production",
+      "tenantId": "cust_12345",
+      "pipelineRun": "run_98765"
+    }
+  }
+}
+```
+
+- **Event filtering**: Deliver only the events your service needs.
+- **Metadata pass-through**: The `metadata` key-value pairs are returned in the callback payload under both root `metadata` and `data.metadata`.
+- **Signing secret**: Signed with your **Workspace default webhook secret**.
+
+### 3. Configured workspace endpoints
+
+For persistent production infrastructure, register reusable endpoints in the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under **Webhooks** or via the REST API.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 50,
+  "webhook": {
+    "endpointId": "whk_01M3V0V7CGY4YFZHEBDQ80N73S"
+  }
+}
+```
+
+- **Dedicated signing secret**: Each endpoint receives a unique signing secret starting with `whsec_`.
+- **Delivery logs**: View individual delivery attempts, response codes, latencies, and response excerpts directly in the dashboard.
+- **Manual redrive**: Retry failed deliveries with one click from the delivery drawer.
+
+---
+
+## Supported event types
+
+| Event type | Category | Trigger condition | Default inline |
+| :--- | :--- | :--- | :--- |
+| `job.ready` | Terminal | An asynchronous crawl or batch job finished compiling all pages. Results are ready at `/v1/jobs/{jobId}/results`. | Yes |
+| `job.failed` | Terminal | A job failed due to execution failure or unrecoverable network errors. | Yes |
+| `job.cancelled` | Terminal | A job was explicitly cancelled via `DELETE /v1/jobs/{jobId}`. | Yes |
+| `crawl.page_completed` | Streaming | A single page within a crawl job finished compilation. Delivers page index, artifact links, and credit usage. | Opt-in only |
+| `webhook.test` | Diagnostics | A test ping dispatched from the Atlas Dashboard to verify endpoint connectivity and signature verification. | No |
+
+  `crawl.page_completed` can generate high request volumes on large crawls (for example, 1,000 pages). It requires explicit subscription in your `events` list and is never delivered by shorthand string URLs.
+
+---
+
+## Standard Webhooks wire protocol
+
+Atlas webhooks adhere to the open [Standard Webhooks](https://standardwebhooks.com) specification. Every HTTP POST includes the following headers:
+
+| Header | Example | Description |
+| :--- | :--- | :--- |
+| `webhook-id` | `msg_20261001061955_whk_01M3...` | Unique message identifier for delivery deduplication. |
+| `webhook-timestamp` | `1790835595` | Integer Unix epoch timestamp (seconds) when the payload was signed. |
+| `webhook-signature` | `v1,4e532b21cf57ad...` | Space-separated HMAC-SHA256 signatures prefixed with version `v1,`. |
+
+  **Legacy compatibility headers**: Atlas also includes `x-atlas-signature` (`t=...,v1=...`) and `x-atlas-webhook-timestamp` for backward compatibility with existing webhook libraries.
+
+---
+
+## Canonical event payloads
+
+### Terminal job event (`job.ready`, `job.failed`, `job.cancelled`)
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "evt_01M3V2R5..._job_01M3V2...",
+  "type": "job.ready",
+  "timestamp": "2026-10-01T10:38:19.263Z",
+  "createdAt": "2026-10-01T10:38:19.263Z",
+  "workspaceId": "ws_01M3PT5WDHXYZF4J1CT9P4R6TA",
+  "projectId": "prj_01M3PT5WDHXYZF4J1CT9P4R6TB",
+  "data": {
+    "jobId": "job_01M3V2R5F8VJQPTYG0R5JXXWAS",
+    "kind": "crawl",
+    "status": "ready",
+    "request": {
+      "rootUrl": "https://example.com/docs"
+    },
+    "stats": {
+      "totalPages": 42,
+      "successfulPages": 42,
+      "failedPages": 0,
+      "creditsUsed": 42,
+      "durationMs": 14250
+    },
+    "artifacts": {
+      "resultsUrl": "https://api.atlas-compiler.com/v1/jobs/job_01M3V2R5F8VJQPTYG0R5JXXWAS/results",
+      "errorsUrl": "https://api.atlas-compiler.com/v1/jobs/job_01M3V2R5F8VJQPTYG0R5JXXWAS/errors"
+    },
+    "metadata": {
+      "environment": "production"
+    }
+  },
+  "metadata": {
+    "environment": "production"
+  },
+  "error": null
+}
+```
+
+When `type` is `job.failed`, the `error` field contains `{ "code": "job_failed", "message": "..." }`.
+
+### Streaming page event (`crawl.page_completed`)
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "evt_01M3V2R5..._0",
+  "type": "crawl.page_completed",
+  "timestamp": "2026-10-01T10:38:15.112Z",
+  "createdAt": "2026-10-01T10:38:15.112Z",
+  "workspaceId": "ws_01M3PT5WDHXYZF4J1CT9P4R6TA",
+  "projectId": "prj_01M3PT5WDHXYZF4J1CT9P4R6TB",
+  "data": {
+    "jobId": "job_01M3V2R5F8VJQPTYG0R5JXXWAS",
+    "pageIndex": 0,
+    "url": "https://example.com/docs/quickstart",
+    "statusCode": 200,
+    "artifact": {
+      "id": "art_01M3V2R5...",
+      "resultsUrl": "https://api.atlas-compiler.com/v1/jobs/job_01M3V2R5F8VJQPTYG0R5JXXWAS/results"
+    },
+    "metadata": {
+      "title": "Quickstart Guide",
+      "canonicalUrl": "https://example.com/docs/quickstart"
+    },
+    "userMetadata": {
+      "environment": "production"
+    },
+    "usage": {
+      "credits": 1
+    }
+  },
+  "metadata": {
+    "environment": "production"
+  },
+  "error": null
+}
+```
+
+---
+
+## Signature verification
+
+To protect your webhook receiver against forged requests and replay attacks, verify the signature before processing any payload:
+
+1. **Verify timestamp freshness**: Check that `webhook-timestamp` is within **300 seconds (5 minutes)** of your system clock.
+2. **Reconstruct signed payload**: Construct the string `${webhook-id}.${webhook-timestamp}.${rawBody}` using the exact raw bytes of the request body.
+3. **Compute HMAC-SHA256**: Calculate HMAC-SHA256 using the base64-decoded secret key (stripping any `whsec_` or `whsec_ws_` prefix).
+4. **Compare signatures**: Perform a **constant-time comparison** against the signature in `webhook-signature`.
+
+### Verification examples
+
+```typescript TypeScript (SDK)
+
+// In your Express, Next.js, or Hono route handler:
+app.post('/webhooks/atlas', async (req, res) => {
+  const rawBody = req.rawBody; // Use raw string or Uint8Array body
+  const headers = req.headers;
+  const secret = process.env.ATLAS_WEBHOOK_SECRET!;
+
+  const result = await verifyWebhookSignature({
+    payload: rawBody,
+    headers: headers,
+    secret: secret,
+    toleranceSeconds: 300, // 5-minute replay tolerance window
+  });
+
+  if (!result.valid) {
+    console.error('Webhook verification failed:', result.error);
+    return res.status(401).send('Invalid signature');
+  }
+
+  const event = result.event;
+  console.log(`Verified ${event.type} for job ${event.data.jobId}`);
+  return res.status(200).send('OK');
+});
+```
+
+```python Python (SDK)
+from flask import Flask, request, abort
+from atlascompiler import verify_webhook_signature
+
+app = Flask(__name__)
+
+@app.route("/webhooks/atlas", methods=["POST"])
+def atlas_webhook():
+    raw_payload = request.get_data(as_text=True)
+    headers = request.headers
+    secret = os.environ["ATLAS_WEBHOOK_SECRET"]
+
+    result = verify_webhook_signature(
+        payload=raw_payload,
+        headers=headers,
+        secret=secret,
+        tolerance_seconds=300,
+    )
+
+    if not result.valid:
+        print(f"Webhook verification failed: {result.error}")
+        abort(401)
+
+    event = result.event
+    print(f"Verified event: {event['type']} for job {event['data']['jobId']}")
+    return "OK", 200
+```
+
+```go Go (SDK)
+package main
+
+	"io"
+	"log"
+	"net/http"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Cannot read body", http.StatusBadRequest)
+		return
+	}
+
+	secret := os.Getenv("ATLAS_WEBHOOK_SECRET")
+
+	result, err := atlas.VerifyWebhook(body, r.Header, secret)
+	if err != nil || !result.Valid {
+		log.Printf("Invalid signature: %v (error: %s)", err, result.Error)
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("Received verified event %v", result.Event["type"])
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+```typescript Node.js (Web Crypto)
+
+export function verifyAtlasWebhook(rawBody: string, headers: Record, secret: string) {
+  const id = headers['webhook-id'];
+  const timestampStr = headers['webhook-timestamp'];
+  const signatureHeader = headers['webhook-signature'];
+
+  if (!id || !timestampStr || !signatureHeader) {
+    throw new Error('Missing Standard Webhooks headers');
+  }
+
+  const timestamp = Number(timestampStr);
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > 300) {
+    throw new Error('Webhook timestamp outside 5-minute tolerance window');
+  }
+
+  // Strip prefix and decode base64 key
+  const cleanKey = secret.replace(/^whsec_(?:ws_)?/, '').replace(/-/g, '+').replace(/_/g, '/');
+  const keyBytes = Buffer.from(cleanKey, 'base64');
+
+  const signedPayload = `${id}.${timestamp}.${rawBody}`;
+  const computedSignature = `v1,${crypto.createHmac('sha256', keyBytes).update(signedPayload).digest('base64')}`;
+
+  const expectedSignatures = signatureHeader.split(' ');
+  const isValid = expectedSignatures.some((sig) =>
+    sig.length === computedSignature.length &&
+    crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(computedSignature))
+  );
+
+  if (!isValid) throw new Error('Signature mismatch');
+  return JSON.parse(rawBody);
+}
+```
+
+---
+
+## Zero-downtime secret rotation
+
+When you rotate your webhook secret in the Atlas Dashboard, Atlas provides a **24-hour dual-signature grace period**:
+
+```http
+webhook-signature: v1,NewSignatureBase64== v1,PreviousSignatureBase64==
+```
+
+1. The first signature is computed using your **new secret**.
+2. The second signature is computed using your **previous secret**.
+3. Your server can update its environment configuration at any point during the 24 hours without dropping any events.
+4. All official Atlas SDKs automatically check both current and candidate secrets during the grace period.
+
+```typescript TypeScript (Dual-Secret Migration)
+const result = await verifyWebhookSignature({
+  payload: rawBody,
+  headers: req.headers,
+  secret: process.env.ATLAS_WEBHOOK_SECRET!,          // New secret
+  previousSecret: process.env.ATLAS_OLD_WEBHOOK_SECRET, // Old secret during rotation
+});
+```
+
+```python Python (Dual-Secret Migration)
+result = verify_webhook_signature(
+    payload=raw_payload,
+    headers=request.headers,
+    secret=os.environ["ATLAS_WEBHOOK_SECRET"],
+    previous_secret=os.getenv("ATLAS_OLD_WEBHOOK_SECRET"),
+)
+```
+
+---
+
+## Delivery guarantees & retries
+
+- **At-least-once delivery**: In rare network split scenarios, an event may be delivered more than once. Use the `webhook-id` header or the payload `id` as an **idempotency key** to prevent duplicate processing in your database.
+- **Immediate response required**: Your webhook receiver must respond with an HTTP `2xx` status code within **10 seconds**. If your business logic takes longer, offload processing to an internal queue or background worker.
+- **Exponential backoff with jitter**: If your endpoint returns an HTTP status outside the `2xx` range (or times out), Atlas automatically retries across **12 attempts over 72 hours**:
+
+| Attempt | Minimum backoff delay |
+| :--- | :--- |
+| **Attempt 1 $\rightarrow$ 2** | 30 seconds |
+| **Attempt 2 $\rightarrow$ 3** | 2 minutes |
+| **Attempt 3 $\rightarrow$ 4** | 5 minutes |
+| **Attempt 4 $\rightarrow$ 5** | 15 minutes |
+| **Attempt 5 $\rightarrow$ 6** | 30 minutes |
+| **Attempt 6 $\rightarrow$ 7** | 1 hour |
+| **Attempt 7 $\rightarrow$ 12** | 2h, 4h, 8h, 16h, 32h |
+
+- **Dead delivery status**: Deliveries that exhaust all 12 attempts transition to `status: 'dead'`. You can view error logs and trigger redelivery directly from the Atlas Dashboard.
+
+---
+
+## Security & anti-SSRF protections
+
+Atlas enforces strict transport and destination controls to protect internal infrastructure and external receivers:
+
+1. **HTTPS required**: All webhook destination URLs must use `https://`. Unencrypted `http://` URLs are rejected with HTTP 400.
+2. **Public internet only**: Webhooks cannot target loopback addresses (`127.0.0.1`, `localhost`), private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local IPs, or cloud instance metadata endpoints (`169.254.169.254`).
+3. **Standard HTTPS port**: Destinations must communicate over standard HTTPS port 443. Non-standard ports are blocked by the Atlas Egress Gateway.
+4. **TLS 1.3 & modern cipher suites**: Deliveries negotiate TLS 1.3 or TLS 1.2 with modern forward-secrecy cipher suites.
+5. **Payload size bound**: Webhook payloads are capped at 64 KB. Large crawl artifacts are provided as signed URLs (`data.artifacts.resultsUrl`) rather than embedded in the callback body.
+
+---
+
+## Quotas & Rate Limits
+
+URL: https://docs.atlas-compiler.com/production/quotas
+
+Summary: Tier-based concurrency allowances, per-minute request rate limits, and rate limit header specifications.
+
+Atlas enforces tiered rate limits and concurrency quotas to ensure fair resource allocation, protect edge cluster stability, and safeguard target origin servers against accidental denial-of-service.
+
+---
+
+## Tier Allowances & Limits
+
+Every Atlas workspace operates within allowances determined by its active plan tier:
+
+| Plan Tier | Request Rate Limit | Max Concurrent Jobs | Included Monthly Credits | Max Crawl Pages | Max Batch URLs |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Free** | 30 requests / min | 1 concurrent job | 250 credits | 1,000 pages / crawl | 100 URLs |
+| **Starter** | 60 requests / min | 2 concurrent jobs | 5,000 credits | 5,000 pages / crawl | 500 URLs |
+| **Pro** | 120 requests / min | 5 concurrent jobs | 25,000 credits | 25,000 pages / crawl | 1,000 URLs |
+| **Team** | 240 requests / min | 12 concurrent jobs | 120,000 credits | 50,000 pages / crawl | 1,000 URLs |
+| **Scale** | 600 requests / min | 32 concurrent jobs | 480,000 credits | 100,000 pages / crawl | 1,000 URLs |
+| **Business** | 900 requests / min | 48 concurrent jobs | 1,000,000 credits | 200,000 pages / crawl | 1,000 URLs |
+| **Enterprise** | Custom (1,200+ rpm) | 64+ concurrent jobs | Custom pooled allocation | 250,000 pages / crawl | 1,000 URLs |
+
+---
+
+## Rate Limit Response Headers
+
+Every HTTP response from the Atlas API returns real-time quota tracking headers:
+
+```http
+HTTP/1.1 200 OK
+x-ratelimit-limit-requests: 60
+x-ratelimit-remaining-requests: 58
+x-ratelimit-reset-requests: 42
+```
+
+| Header | Description |
+| :--- | :--- |
+| `x-ratelimit-limit-requests` | The total number of requests permitted in the current 60-second rolling window. |
+| `x-ratelimit-remaining-requests` | The number of remaining requests allowed in the current window. |
+| `x-ratelimit-reset-requests` | The number of seconds remaining until the quota window resets. |
+
+---
+
+## Handling `429 Too Many Requests`
+
+When your workspace exceeds its rate limit or concurrent execution ceiling, Atlas returns an HTTP `429 Too Many Requests` error with an RFC 9457 Problem Details payload:
+
+```json
+{
+  "type": "https://api.atlas-compiler.com/problems/rate-limited",
+  "title": "Rate limit exceeded",
+  "status": 429,
+  "detail": "Workspace has exceeded its allowance of 60 requests per minute.",
+  "instance": "/v1/compile",
+  "requestId": "req_01j7abc123",
+  "code": "rate_limited",
+  "retryable": true,
+  "documentationUrl": "https://docs.atlas-compiler.com/errors/rate-limited"
+}
+```
+
+### Exponential Backoff Recipe
+
+All official Atlas SDKs implement automatic exponential backoff with full jitter when encountering retryable rate limits:
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+async function executeWithRetry(fn: () => Promise, maxRetries = 4): Promise {
+  for (let attempt = 0; attempt  setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Exceeded max retries');
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient, AtlasError
+
+atlas = AtlasClient()
+
+def execute_with_retry(fn, max_retries=4):
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except AtlasError as err:
+            if err.retryable and attempt < max_retries - 1:
+                delay = (2 ** attempt) * 1.0 + random.uniform(0, 0.5)
+                time.sleep(delay)
+                continue
+            raise
+```
+
+---
+
+## Requesting Quota Increases
+
+If your workload requires higher burst throughput or higher concurrent crawl slots, contact support or upgrade directly from the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under the **Billing** section. Enterprise customers can configure dedicated edge IPs and custom rate limits.
+
+---
+
+## Plans, Credits & Dodo Payments Billing
+
+URL: https://docs.atlas-compiler.com/production/billing
+
+Summary: Understand the Atlas credit model, subscription tiers, global payments via Dodo Payments, and self-service billing management.
+
+Atlas utilizes a transparent, usage-based credit model paired with monthly subscription plans. Billing and global payments are managed through **Dodo Payments**, our Merchant of Record (MoR), providing localized payment methods, tax compliance, and automated invoicing worldwide.
+
+---
+
+## Subscription Plans Overview
+
+Every workspace begins on our Free tier and can upgrade seamlessly as compilation volume scales:
+
+| Plan | Monthly Price | Annual Price (2 Mo Free) | Included Credits | Concurrency | Rate Limit |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Free** | $0 / mo | $0 / yr | 250 | 1 concurrent job | 30 req / min |
+| **Starter** | $9 / mo | $90 / yr | 5,000 | 2 concurrent jobs | 60 req / min |
+| **Pro** | $24 / mo | $240 / yr | 25,000 | 5 concurrent jobs | 120 req / min |
+| **Team** | $59 / mo | $590 / yr | 120,000 | 12 concurrent jobs | 240 req / min |
+| **Scale** | $189 / mo | $1,890 / yr | 480,000 | 32 concurrent jobs | 600 req / min |
+| **Business** | $360 / mo | $3,600 / yr | 1,000,000 | 48 concurrent jobs | 900 req / min |
+| **Enterprise** | Custom | Custom | Custom (2B pool) | 64+ concurrent jobs | 1,200+ req / min |
+
+---
+
+## On-Demand Credit Top-Ups
+
+In addition to recurring subscription allowances, workspaces can purchase non-expiring credit packs at any time via Dodo Payments:
+
+| Pack | Credits | Price | Effective Rate |
+| :--- | :--- | :--- | :--- |
+| **5k Boost** | 5,000 credits | $12 | $2.40 / 1k credits |
+| **25k Boost** | 25,000 credits | $30 | $1.20 / 1k credits |
+| **100k Boost** | 100,000 credits | $59 | $0.59 / 1k credits |
+| **500k Boost** | 500,000 credits | $225 | $0.45 / 1k credits |
+| **1M Boost** | 1,000,000 credits | $399 | $0.40 / 1k credits |
+
+---
+
+## Credit Consumption Matrix
+
+Credits represent units of deterministic edge computation:
+
+| Operation | Credit Cost | Notes |
+| :--- | :--- | :--- |
+| **Scrape** (`POST /v1/scrape`) | **1 credit** | Per successful page extraction. |
+| **Compile** (`POST /v1/compile`) | **1 credit** | Per successful visual compilation. |
+| **Map** (`POST /v1/map`) | **1 credit** | Per domain mapping execution (up to 10,000 URLs). |
+| **Crawl** (`POST /v1/crawls`) | **1 credit / page** | Billed only for successfully compiled pages. Failed URLs are not billed. |
+| **Batch** (`POST /v1/batches`) | **1 credit / page** | Billed per successful item. Partial failures do not consume credits. |
+
+  **Failed Request Policy**: If Atlas cannot compile a target URL due to an upstream server error, DNS failure, or edge timeout, zero credits are deducted from your balance.
+
+---
+
+## Global Payments via Dodo Payments
+
+Atlas partners with Dodo Payments to provide friction-free global checkout:
+
+- **150+ Supported Currencies**: Prices and invoices are automatically presented in your local currency with purchasing power parity (PPP) adjustments where eligible.
+- **Local Payment Methods**: Pay via major credit cards (Visa, Mastercard, Amex), Apple Pay, Google Pay, UPI (India), Pix (Brazil), and SEPA direct debit (Europe).
+- **Automated Tax Compliance**: Dodo Payments calculates and remits VAT, GST, and US sales tax automatically, providing compliant tax invoices and receipts.
+
+---
+
+## Upgrading & Customer Portal
+
+You can initiate plan upgrades, buy on-demand credit top-ups, or access the self-service billing portal programmatically or via the Atlas Dashboard.
+
+### 1. Start Hosted Checkout Session
+
+Create a checkout session to subscribe to a paid plan:
+
+```bash
+curl -X POST https://api.atlas-compiler.com/v1/workspaces/ws_123/billing/checkout \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "planCode": "pro",
+    "billingCycle": "monthly"
+  }'
+```
+
+Response:
+```json
+{
+  "url": "https://checkout.dodopayments.com/buy/sub_01j7abc..."
+}
+```
+
+Redirect your user or open the returned `url` to complete checkout securely.
+
+---
+
+### 2. Access the Self-Service Customer Portal
+
+Generate a secure, short-lived customer portal URL to let customers manage payment methods, download PDF invoices, or change plan tiers:
+
+```bash
+curl -X POST https://api.atlas-compiler.com/v1/workspaces/ws_123/billing/portal \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json"
+```
+
+Response:
+```json
+{
+  "url": "https://billing.dodopayments.com/p/session_01j7..."
+}
+```
+
+---
+
+### 3. Inspecting the Usage Ledger
+
+Every credit deduction, top-up, and plan renewal is recorded in an immutable ledger:
+
+```bash
+curl -X GET https://api.atlas-compiler.com/v1/workspaces/ws_123/usage/ledger \
+  -H "Authorization: Bearer $ATLAS_API_KEY"
+```
+
+Response:
+```json
+{
+  "balance": 24850,
+  "entries": [
+    {
+      "id": "led_01j7abc...",
+      "amount": -1,
+      "reason": "compile",
+      "referenceId": "job_01j7abc...",
+      "timestamp": "2026-09-19T12:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## Reliability, SLAs & Incident Management
+
+URL: https://docs.atlas-compiler.com/production/reliability
+
+Summary: Architectural resilience, 99.95% uptime SLA, partial failure isolation, and operational health monitoring.
+
+Atlas is engineered from the ground up for mission-critical production workloads. Whether driving autonomous AI agent loops, continuous RAG pipelines, or large-scale document migrations, our distributed edge compiler provides high availability, fault tolerance, and predictable latency.
+
+---
+
+## Service Level Agreements (SLAs)
+
+Atlas maintains strict availability commitments backed by our global edge deployment:
+
+| Tier | Availability Target | Support Response SLA |
+| :--- | :--- | :--- |
+| **Free / Starter** | 99.9% uptime | Community & Email (24–48 hours) |
+| **Pro** | 99.95% uptime | Priority Email & [Discord](https://discord.gg/z9ktRhuudq) ( DNS["Anycast DNS Routing"]
+    DNS --> Edge["Nearest Global Edge Node (300+ PoPs)"]
+    Edge --> Isolates["Isolated V8 Execution Sandbox"]
+    Isolates --> Upstream["Target Origin Web Server"]
+    Isolates -.->|"Timeout / 5xx"| Fallback["Partial Failure Isolation (Return Clean Error)"]
+    Isolates -->|"Success"| Markdown["Deterministic Markdown Generation"]
+    Markdown --> Client
+```
+
+### 1. Partial Failure Isolation
+In distributed crawls and multi-URL batches, individual target failures (e.g., origin 500 errors, network timeouts, or malformed HTML) are completely isolated. A failure on URL #42 never causes the entire 1,000-page batch to abort. Successful pages are processed and saved immediately.
+
+### 2. Opportunistic Bounded Polling
+Asynchronous endpoints such as `POST /v1/crawls` and MCP `atlas_crawl` employ opportunistic bounded polling (up to 3 seconds). If the job finishes immediately, the response is delivered synchronously without requiring client polling loops. If execution requires longer, a clean asynchronous handoff occurs.
+
+### 3. Edge Redundancy & Anycast Failover
+Atlas operates across 300+ edge locations globally. If a specific data center or cloud region experiences localized transit disruptions, Anycast BGP routing automatically diverts traffic to the nearest healthy edge point of presence (PoP) in sub-millisecond intervals.
+
+---
+
+## Incident Management & Status
+
+Monitor real-time system performance, health endpoints, and planned maintenance windows:
+
+- **Public Health Endpoint**: [`https://api.atlas-compiler.com/health`](https://api.atlas-compiler.com/health) (Liveness probe)
+- **Community & Incident Announcements**: Join the [Atlas Discord](https://discord.gg/z9ktRhuudq) `#announcements` channel or subscribe to our [GitHub Releases](https://github.com/Atlas-Compiler/Atlas) for real-time notifications regarding degraded performance or scheduled maintenance.
+
+---
+
+## Benchmark Methodology
+
+URL: https://docs.atlas-compiler.com/benchmarks/methodology
+
+Summary: Scientific benchmarking harness, dataset composition, and measurement standards for evaluating web extraction engines.
+
+To provide objective, reproducible comparisons between Atlas and alternative web extraction tools, we evaluated execution performance, token efficiency, table fidelity, and memory overhead across a diverse corpus of **1,000 production websites**.
+
+---
+
+## Dataset Composition (Atlas-1000)
+
+The **Atlas-1000 Corpus** consists of real-world URLs selected across 5 distinct web architecture categories:
+
+| Category | Count | Characteristics | Examples |
+| :--- | :--- | :--- | :--- |
+| **Complex SPAs & Web Apps** | 250 | Heavy client-side hydration, client-side routing, skeleton screens, dynamic shadow DOM. | Linear, Twitter/X, Vercel, Supabase |
+| **Technical Documentation** | 250 | Multi-level navigation trees, code fences with syntax highlighting, tabs, callout boxes. | Stripe, Next.js, GitHub Docs, AWS |
+| **Financial & Pricing Tables** | 200 | Multi-column comparison matrices, sticky headers, tooltips, currency toggles. | OpenAI, AWS Pricing, Shopify, Datadog |
+| **News, Publications & Media** | 150 | Heavy advertising banners, cookie consent dialogs, related article sidebars, dynamic video players. | NYTimes, The Verge, Bloomberg, TechCrunch |
+| **E-Commerce & Catalogs** | 150 | Faceted search, pagination, product variant grids, customer review carousels. | Amazon, Shopify stores, Target |
+
+---
+
+## Evaluation Metrics
+
+### 1. Latency & Time-to-First-Chunk (TTFC)
+We measure total roundtrip wall-clock time from the client's initial request until the full compiled Markdown or AST payload is received. We record **P50 (Median)**, **P90**, and **P99** latencies across 10 consecutive cold-start and warm-cache runs.
+
+### 2. Token Tax Reduction
+For every web page, we compute the token count using OpenAI's `o200k_base` (GPT-4o) and `cl100k_base` (GPT-4) tokenizers:
+$$\text{Token Tax Reduction \%} = \frac{\text{Raw HTML Tokens} - \text{Atlas Markdown Tokens}}{\text{Raw HTML Tokens}} \times 100$$
+
+### 3. Table Structural Fidelity (TSF Score)
+Table fidelity measures whether tabular data in the DOM is accurately reconstructed in GitHub Flavored Markdown (GFM) pipe tables without scrambled columns or collapsed multi-line cells. Graded from 0% (total failure/missing) to 100% (perfect row/column alignment).
+
+### 4. Server Resource Footprint (RAM & CPU)
+We profile resident set size (RSS) memory consumption and CPU cycle duration required to compile each page under identical 100-request concurrent loads.
+
+---
+
+## Testing Environment & Reproducibility
+
+- **Hardware**: Dedicated AMD EPYC 7763 64-Core Processor (2.45 GHz), 256 GB RAM, 10 Gbps symmetric network uplink.
+- **Client Runner**: Node.js v22 test runner executing parallel requests with 10-second request timeouts and randomized target order.
+- **Comparison Baselines**:
+  - **Headless Chromium (Puppeteer/Playwright)**: Full browser automation with network idle wait conditions.
+  - **Naive DOM Parsers (Readability.js + Turndown)**: Standard open-source heuristic readability algorithms.
+  - **Atlas Web Compiler**: Native edge pipeline with visual tree analysis.
+
+---
+
+## Atlas Arena Results
+
+URL: https://docs.atlas-compiler.com/benchmarks/atlas-arena-results
+
+Summary: Empirical benchmark results evaluating Atlas against Headless Chromium, Readability.js, and legacy web scraping tools.
+
+The results below reflect the audited run of the **Atlas-1000 Benchmark Corpus** (September 2026), evaluating Atlas against industry baselines across latency, token savings, table fidelity, and memory efficiency.
+
+---
+
+## Executive Summary
+
+```mermaid
+graph TD
+    subgraph LatencyGroup ["P50 Latency (Lower is Better)"]
+        Atlas["Atlas: 1,308ms"]
+        Readability["Readability.js: 980ms"]
+        Puppeteer["Headless Chrome: 4,820ms"]
+    end
+```
+
+- **3.7x Faster than Headless Chrome**: Atlas completes full SPA and document compilation in **1,308ms (P50)** vs **4,820ms** for Puppeteer/Playwright.
+- **65% Average Token Tax Reduction**: By stripping irrelevant navigation chrome, ads, and boilerplate code, Atlas saves an average of 65% of context window tokens per page.
+- **98.4% Table Accuracy**: Complex multi-column pricing and financial tables are converted into aligned GFM pipe tables with 98.4% fidelity (vs 42.1% for naive HTML-to-Markdown parsers).
+- **40x Less Memory Overhead**: Atlas executes within a lightweight isolate consuming **` documentation body, collapses tabbed snippets into distinct language-tagged code blocks, and preserves heading hierarchy (`#`, `##`, `###`).
+- **Readability.js**: Frequently strips code blocks or mistakes navigation breadcrumbs for body content.
+- **Result**: **71.4% token reduction** with 100% code block accuracy.
+
+---
+
+### 2. Pricing & Financial Matrices (SaaS Pricing, SEC Filings)
+Dynamic pricing grids often use CSS grid or flexbox layouts with sticky header columns.
+- **Atlas**: Uses geometric layout analysis to map CSS column alignments into standard Markdown pipe tables (`| Tier | Monthly | Features |`).
+- **Readability.js**: Discards CSS layout data, outputting unstructured paragraphs where feature checkmarks are separated from their column headers.
+- **Result**: **98.4% table structural fidelity**, enabling zero-hallucination analysis in LLMs.
+
+---
+
+### 3. Single-Page Applications (Linear, Twitter/X, Supabase)
+SPAs deliver empty `` shells on initial HTTP download.
+- **Atlas**: Executes client JavaScript within isolated execution engines, waiting for DOM mutation stability before compiling the visual tree.
+- **Readability.js**: Returns 0 words of body content (complete extraction failure).
+- **Result**: **100% extraction success** on modern client-side apps without running heavy Chromium binaries.
+
+---
+
+## REST API Overview
+
+URL: https://docs.atlas-compiler.com/api-reference/overview
+
+Summary: Core conventions, authentication, base URLs, rate limits, and idempotency headers for the Atlas public REST API.
+
+The Atlas REST API provides programmatic, low-latency access to the Atlas web compiler, visual Markdown extractor, sitemap crawler, and topology mapper.
+
+The API is structured around REST principles, accepts JSON-encoded request bodies, returns standard HTTP response codes, and delivers RFC 9457 machine-readable error responses.
+
+---
+
+## Base URL
+
+All requests must be made over HTTPS to the production API origin:
+
+```http
+https://api.atlas-compiler.com/v1
+```
+
+  Workspace resolution is automatic. When you authenticate using a Bearer API key, Atlas automatically associates the request with your target workspace and default project without requiring manual workspace path parameters.
+
+---
+
+## Authentication
+
+Every request to the Atlas API requires a valid API key passed in the standard HTTP `Authorization` header:
+
+Requests missing the `Authorization` header or presenting an expired or revoked key receive an immediate `401 Unauthorized` response.
+
+---
+
+## Idempotency & Safe Retries
+
+For mutating endpoints (such as `POST /v1/compile`, `POST /v1/crawls`, and `POST /v1/batches`), you can attach an optional `Idempotency-Key` header:
+
+When you supply an `Idempotency-Key`:
+- If an identical request is received within 24 hours while the previous request was already processed, Atlas returns the cached result with an added HTTP header: `Idempotency-Replayed: true`.
+- If an identical request arrives while the first request is still actively executing, Atlas safely coordinates execution to prevent duplicate work or redundant billing deductions.
+
+---
+
+## Request & Response Headers
+
+### Standard Request Headers
+
+| Header | Required | Description |
+| :--- | :--- | :--- |
+| `Authorization` | **Yes** | Bearer authentication token (`Bearer atlas_...`). |
+| `Content-Type` | **Yes** | Must be `application/json` for all POST requests. |
+| `Idempotency-Key` | No | Unique client-generated key (min 8 chars) for retry deduplication. |
+
+### Standard Response Headers
+
+Every response from the Atlas API includes headers for tracing, rate limiting, and caching:
+
+| Header | Description |
+| :--- | :--- |
+| `x-atlas-request-id` | Unique request identifier (e.g., `req_01j7abc123...`) used for support and tracing. |
+| `x-ratelimit-limit-requests` | Maximum number of requests allowed per rolling minute for your tier. |
+| `x-ratelimit-remaining-requests` | Remaining request quota available in the current rate limit window. |
+| `x-ratelimit-reset-requests` | Seconds remaining until the current rate limit window resets. |
+| `Idempotency-Replayed` | Present and set to `"true"` when returning a previously computed response. |
+
+---
+
+## Standard HTTP Status Codes
+
+Atlas uses conventional HTTP response codes to indicate request outcomes:
+
+| Status Code | Meaning | Description |
+| :--- | :--- | :--- |
+| `200 OK` | Success | The compilation or operation completed synchronously. The response body contains results. |
+| `202 Accepted` | Asynchronous Job | Long-running crawls or batches have been queued. Inspect the returned `Location` header or job ID. |
+| `400 Bad Request` | Validation Error | Request body or query parameters failed validation. Details appear in `invalidParams`. |
+| `401 Unauthorized` | Authentication Failure | Missing, malformed, or invalid API key. |
+| `403 Forbidden` | Access Denied | API key lacks required scope, or IP address is not allowlisted. |
+| `404 Not Found` | Resource Missing | Target job ID, workspace, or resource does not exist. |
+| `409 Conflict` | State Conflict | An in-flight idempotent request is conflicting, or resource state is locked. |
+| `429 Too Many Requests` | Rate Limit Exceeded | Workspace exceeded concurrent job limits or per-minute request rate. Inspect `retryAfter`. |
+| `500 Internal Error` | Internal Server Error | Unexpected error occurred in the edge cluster. Request is automatically marked retryable. |
+| `503 Service Unavailable` | Service Unavailable | Engine capacity temporary saturation or scheduled maintenance window. |
+
+For detailed machine-readable error codes and handling recipes, see the [RFC 9457 Error Dictionary](/api-reference/errors).
+
+---
+
+## Polyglot Quick Example
+
+Here is how to perform an authenticated synchronous extraction across our 4 supported SDK languages:
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "formats": ["markdown"]
+  }'
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY!,
+});
+
+const result = await atlas.scrape({
+  url: 'https://example.com',
+  formats: ['markdown'],
+});
+
+console.log(result.data.markdown);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = atlas.scrape(
+    url="https://example.com",
+    formats=["markdown"],
+)
+
+print(result.data.markdown)
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	result, _, err := client.Scrape(context.Background(), atlas.ScrapeRequest{
+		Url:     "https://example.com",
+		Formats: []string{"markdown"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	if result.Response200 != nil {
+		fmt.Println(result.Response200.Markdown)
+	}
+}
+```
+
+---
+
+## Asynchronous operations & webhooks
+
+Long-running jobs—such as recursive domain crawls (`POST /v1/crawls`) and multi-URL batches (`POST /v1/batches`)—execute asynchronously.
+
+When submitted, Atlas immediately returns `HTTP 202 Accepted` with a unique job ID (`job_...`). You can track progress in two ways:
+
+1. **Webhooks (Recommended)**: Pass an HTTPS `webhook` parameter in your request body to receive real-time push notifications when the job reaches terminal completion (`job.ready`, `job.failed`, `job.cancelled`) or as individual crawl pages complete (`crawl.page_completed`). See the [Webhooks Guide](/guides/webhooks) for event schemas, replay protection, and signature verification.
+2. **Polling**: Query `GET /v1/jobs/{jobId}` until `status` transitions to `ready` or `failed`, or use the built-in `waitForJob` polling helper provided by the official SDKs.
+
+---
+
+## RFC 9457 Error Dictionary
+
+URL: https://docs.atlas-compiler.com/api-reference/errors
+
+Summary: Machine-readable Problem Details schema, comprehensive error code dictionary, and resilient programmatic handling recipes.
+
+Atlas returns errors formatted according to the **RFC 9457 Problem Details for HTTP APIs** specification (`Content-Type: application/problem+json`).
+
+Every error response contains a stable, machine-readable `code`, human-readable `detail`, HTTP status code, a unique tracing `requestId`, and an explicit boolean `retryable` indicator so your application can make deterministic retry decisions without fragile regex string parsing.
+
+---
+
+## Error Response Schema
+
+### Problem Details Fields
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `type` | `string` | **Yes** | An absolute URI reference that identifies the problem type. |
+| `title` | `string` | **Yes** | A short, human-readable summary of the problem type. |
+| `status` | `integer` | **Yes** | The HTTP status code generated by the origin server. |
+| `detail` | `string` | **Yes** | A human-readable explanation specific to this occurrence of the problem. |
+| `instance` | `string` | **Yes** | The request URI path where the problem occurred. |
+| `requestId` | `string` | **Yes** | Unique request trace ID (e.g., `req_01j7abc123...`). Always provide this ID to Atlas support. |
+| `code` | `string` | **Yes** | A snake_case machine-readable error code for client switch/case statements. |
+| `retryable` | `boolean` | **Yes** | When `true`, the client may safely retry the request using exponential backoff. |
+| `documentationUrl` | `string` | No | Direct link to the public documentation troubleshooting guide for this specific error code. |
+| `invalidParams` | `object[]` | No | List of parameter validation errors, containing `name` and `reason` pairs. |
+
+---
+
+## Complete Error Code Reference
+
+### 1. Authentication & Authorization Errors
+
+| Code | HTTP Status | Retryable | Cause & Resolution |
+| :--- | :--- | :--- | :--- |
+| `unauthorized` | `401` | No | Missing `Authorization` header or malformed Bearer token. Check API key presence. |
+| `invalid_credentials` | `401` | No | API key is revoked, expired, or invalid. Verify in the Atlas Dashboard. |
+| `forbidden` | `403` | No | Caller lacks permission or token lacks the required scope (e.g. `atlas:crawl`). |
+| `workspace_not_found` | `404` | No | The workspace associated with the credentials could not be located or is deleted. |
+| `forbidden_origin` | `403` | No | MCP client origin header is disallowed (browser DNS rebinding defense). |
+| `forbidden_host` | `403` | No | Host header mismatch during MCP connection. |
+
+---
+
+### 2. Validation & Request Errors
+
+| Code | HTTP Status | Retryable | Cause & Resolution |
+| :--- | :--- | :--- | :--- |
+| `validation_failed` | `400` | No | Request body failed schema validation. Inspect `invalidParams` for field-level errors. |
+| `bad_request` | `400` | No | Malformed JSON payload or unsupported parameters. |
+| `invalid_cursor` | `400` | No | Pagination cursor has expired, is corrupted, or was generated with different parameters. |
+| `invalid_workspace_slug` | `400` | No | Provided workspace slug does not conform to URL-safe naming constraints. |
+
+---
+
+### 3. Concurrency & Idempotency Errors
+
+| Code | HTTP Status | Retryable | Cause & Resolution |
+| :--- | :--- | :--- | :--- |
+| `idempotency_conflict` | `409` | Yes | An identical request is currently executing in-flight. Wait 500ms and retry with the same key. |
+| `conflict` | `409` | No | Target resource was modified or is currently in an incompatible state. |
+
+---
+
+### 4. Quotas & Billing Errors
+
+| Code | HTTP Status | Retryable | Cause & Resolution |
+| :--- | :--- | :--- | :--- |
+| `rate_limited` | `429` | Yes | Request rate exceeded per-minute capacity. Back off according to `retryAfter`. |
+| `plan_limit_exceeded` | `429` | No | Workspace reached maximum concurrent jobs allowed for its plan tier. |
+| `insufficient_credits` | `402` | No | Balance is lower than required operation cost. Top up credits in the Atlas Dashboard. |
+| `credits_exhausted` | `402` | No | Credit balance has reached zero. All compilation operations are halted. |
+
+---
+
+### 5. Upstream Target Errors
+
+| Code | HTTP Status | Retryable | Cause & Resolution |
+| :--- | :--- | :--- | :--- |
+| `upstream_fetch_failed` | `502` | Yes | Target web server returned a 5xx error or dropped the connection. |
+| `upstream_timeout` | `504` | Yes | Target web server failed to respond within the execution timeout (default: 30s). |
+| `upstream_dns_failure` | `502` | No | Target domain does not exist or failed DNS resolution. |
+| `upstream_blocked` | `502` | No | Target IP is private or restricted by SSRF protection filters. |
+
+---
+
+### 6. Infrastructure Errors
+
+| Code | HTTP Status | Retryable | Cause & Resolution |
+| :--- | :--- | :--- | :--- |
+| `service_unavailable` | `503` | Yes | Edge cluster capacity is momentarily saturated. Safe to retry with exponential backoff. |
+| `internal_error` | `500` | Yes | Unexpected unhandled exception in the edge pipeline. Contact support with `requestId`. |
+
+---
+
+## Programmatic Error Handling Recipes
+
+Use the `retryable` field and machine-readable `code` to build resilient client applications:
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+async function compileWithRetry(url: string, maxRetries = 3) {
+  for (let attempt = 1; attempt  setTimeout(resolve, delay));
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient, AtlasError
+
+atlas = AtlasClient()
+
+def compile_with_retry(url: str, max_retries: int = 3):
+    for attempt in range(1, max_retries + 1):
+        try:
+            return atlas.compile(url=url)
+        except AtlasError as err:
+            print(f"Atlas Error [{err.code}]: {err.message} (Request ID: {err.request_id})")
+
+            if err.code == "validation_failed":
+                raise  # Permanent failure
+
+            if err.retryable and attempt = maxRetries {
+				return nil, err
+			}
+
+			delay := time.Duration(math.Pow(2, float64(attempt))*500+float64(rand.Intn(200))) * time.Millisecond
+			time.Sleep(delay)
+			continue
+		}
+
+		return nil, err
+	}
+	return nil, errors.New("exceeded maximum retries")
+}
+```
+
+---
+
+## Scrape URL
+
+URL: https://docs.atlas-compiler.com/api-reference/scrape
+API Operation: POST /v1/scrape
+Summary: Synchronously compile a single web page into clean, structured Markdown, links, and metadata.
+
+Execute a synchronous scrape request against a target URL. Atlas fetches the web page, renders single-page applications, and compiles the DOM into clean Markdown and structured metadata in ~1.3 seconds.
+
+---
+
+## Authentication & Headers
+
+For safe retry behavior on unreliable networks, attach an `Idempotency-Key` header:
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://news.ycombinator.com",
+    "formats": ["markdown", "links"]
+  }'
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const result = await atlas.scrape({
+  url: 'https://news.ycombinator.com',
+  formats: ['markdown', 'links'],
+});
+
+console.log('Title:', result.metadata?.title);
+console.log('Markdown:\n', result.data.markdown);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = atlas.scrape(
+    url="https://news.ycombinator.com",
+    formats=["markdown", "links"],
+)
+
+print(f"Title: {result.metadata.title}")
+print(result.data.markdown)
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk"
+)
+
+func main() {
+	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+
+	result, err := client.Scrape(context.Background(), &atlas.ScrapeParams{
+		URL:     "https://news.ycombinator.com",
+		Formats: []string{"markdown", "links"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Title: %s\n", result.Metadata.Title)
+	fmt.Println(result.Data.Markdown)
+}
+```
+
+---
+
+## Response Structure
+
+A successful `200 OK` response contains:
+- `data.markdown`: LLM-ready clean Markdown.
+- `data.links`: Extracted outbound hyperlinks with anchored text.
+- `metadata`: Page title, canonical URL, HTTP status code, and extraction timestamp.
+- `usage.credits`: Number of credits deducted for the compilation (default: 1 credit).
+
+---
+
+## Compile URL
+
+URL: https://docs.atlas-compiler.com/api-reference/compile
+API Operation: POST /v1/compile
+Summary: Compile a web page or complex SPA into deterministic visual Markdown, GFM tables, and structured AST content graphs.
+
+Execute a visual compilation against a target URL. The Atlas compiler analyzes DOM geometry, computes visual bounding boxes, strips ads and navigation noise, and emits clean GitHub Flavored Markdown (GFM) pipe tables and syntax-highlighted code blocks.
+
+---
+
+## Authentication & Headers
+
+For reliable deduplication on slow networks, provide an `Idempotency-Key` header:
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/compile \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JEXAMPLECOMPILE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://stripe.com/pricing",
+    "cache": {
+      "forceFresh": false
+    }
+  }'
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const result = await atlas.compile({
+  url: 'https://stripe.com/pricing',
+  cache: { forceFresh: false },
+});
+
+console.log('Title:', result.metadata?.title);
+console.log('Tokens Saved:', `${result.stats?.tokensSavedPct}%`);
+console.log('Markdown:\n', result.data.markdown);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = atlas.compile(
+    url="https://stripe.com/pricing",
+    cache={"force_fresh": False},
+)
+
+print(f"Title: {result.metadata.title}")
+print(result.data.markdown)
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk"
+)
+
+func main() {
+	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+
+	result, err := client.Compile(context.Background(), &atlas.CompileParams{
+		URL: "https://stripe.com/pricing",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Title: %s\n", result.Metadata.Title)
+	fmt.Println(result.Data.Markdown)
+}
+```
+
+---
+
+## Asynchronous Execution
+
+For complex web pages requiring extended rendering, Atlas may return `202 Accepted` with an admitted job descriptor:
+
+```json
+{
+  "id": "job_01j7abc...",
+  "status": "queued",
+  "createdAt": "2026-09-19T12:00:00.000Z"
+}
+```
+
+When receiving `202 Accepted`, poll the status using [`GET /v1/jobs/{jobId}`](/api-reference/get-job) until `status` becomes `"ready"`.
+
+---
+
+## Map Domain
+
+URL: https://docs.atlas-compiler.com/api-reference/map
+API Operation: POST /v1/map
+Summary: Discover URL topology, sitemaps, and linked navigation graphs for an entire domain without downloading page bodies.
+
+Discover the structural architecture of a domain. Atlas inspects `robots.txt`, traverses standard and nested XML sitemaps, and follows high-priority internal links to return a prioritized list of available URLs.
+
+---
+
+## Authentication & Headers
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/map \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.github.com",
+    "limit": 50,
+    "sitemap": "include",
+    "includeSubdomains": false
+  }'
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const result = await atlas.map({
+  url: 'https://docs.github.com',
+  limit: 50,
+  sitemap: 'include',
+  includeSubdomains: false,
+});
+
+if (result.status === 200) {
+  console.log(`Discovered ${result.value.links.length} URLs (Estimated total: ${result.value.summary.estimatedPages}):`);
+  result.value.links.forEach((link) => console.log(` - [Priority ${link.priority}] ${link.url}`));
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = client.map({
+    "url": "https://docs.github.com",
+    "limit": 50,
+    "sitemap": "include",
+    "includeSubdomains": False,
+})
+
+if result.status == 200:
+    links = result.value["links"]
+    print(f"Discovered {len(links)} URLs (Estimated total: {result.value['summary']['estimatedPages']}):")
+    for link in links:
+        print(f" - [Priority {link['priority']}] {link['url']}")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	limit := 50
+	sitemap := "include"
+	subdomains := false
+
+	res, _, err := client.Map(context.Background(), atlas.MapUrlRequest{
+		Url:               "https://docs.github.com",
+		Limit:             &limit,
+		Sitemap:           &sitemap,
+		IncludeSubdomains: &subdomains,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Discovered %d URLs (Estimated total: %d)\n", len(res.Response200.Links), res.Response200.Summary.EstimatedPages)
+		for _, link := range res.Response200.Links {
+			fmt.Printf(" - [Priority %v] %s\n", link.Priority, link.Url)
+		}
+	}
+}
+```
+
+---
+
+## Response Structure
+
+A successful `200 OK` response contains:
+- `success`: Boolean indicating whether mapping completed successfully.
+- `links`: Array of discovered URL objects:
+  - `url`: Discovered page URL.
+  - `title`: Extracted page title (if available from navigation or sitemap).
+  - `description`: Meta description or extracted snippet summary.
+  - `sources`: Discovery origins (`["sitemap"]`, `["homepage"]`, `["navigation"]`, `["rss"]`, `["manifest"]`).
+  - `priority`: Normalized relevance score (0–100).
+  - `confidence`: Heuristic certainty score (0–100).
+  - `depth`: Link depth relative to the root URL.
+  - `recommended`: Boolean indicating high-priority content recommended for indexing or compilation.
+  - `incomingLinks`: Number of internal pages linking to this route.
+- `summary`: High-level domain topology metrics:
+  - `estimatedPages`: Estimated total page count across the domain.
+  - `framework`: Detected web framework (e.g. Next.js, Astro, Docusaurus).
+  - `language`: Detected primary language.
+  - `discoveryConfidence`: Discovery confidence percentage.
+  - `recommendedDepth`: Recommended crawl depth limit.
+  - `recommendedEntryPoint`: Primary documentation or content entry route.
+  - `estimatedCompileTime`: Estimated time to compile the mapped pages.
+  - `estimatedTokens`: Estimated token count for LLM context planning.
+- `usage`: Credit consumption details (`credits: 1`).
+
+---
+
+## Create Crawl Job
+
+URL: https://docs.atlas-compiler.com/api-reference/crawl
+API Operation: POST /v1/crawls
+Summary: Start a distributed, recursive crawl across an entire domain or documentation section.
+
+Initiate a distributed, asynchronous crawl job across a target website. Atlas traverses hyperlinks from the root URL, enforces inclusion/exclusion path rules, respects sitemaps, and compiles discovered pages into clean Markdown.
+
+---
+
+## Authentication & Headers
+
+To prevent duplicate crawl jobs on accidental retries, provide an `Idempotency-Key` header:
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/crawls \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JCRAWLJOB001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.stripe.com",
+    "maxPages": 100,
+    "maxDepth": 5,
+    "includePaths": ["/docs/**"],
+    "excludePaths": ["/docs/legacy/**"]
+  }'
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const res = await atlas.createCrawl({
+  url: 'https://docs.stripe.com',
+  maxPages: 100,
+  maxDepth: 5,
+  includePaths: ['/docs/**'],
+  excludePaths: ['/docs/legacy/**'],
+  webhook: {
+    url: 'https://api.your-domain.com/webhooks/atlas',
+    events: ['job.ready', 'job.failed'],
+  },
+});
+
+console.log('Crawl Job Admitted:', res.value.id);
+console.log('Status:', res.value.status);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+res = atlas.create_crawl({
+    "url": "https://docs.stripe.com",
+    "maxPages": 100,
+    "maxDepth": 5,
+    "includePaths": ["/docs/**"],
+    "excludePaths": ["/docs/legacy/**"],
+    "webhook": "https://api.your-domain.com/webhooks/atlas",
+})
+
+print(f"Crawl Job Admitted: {res.value['id']} (Status: {res.value['status']})")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	maxPages := 100
+	maxDepth := 5
+	res, _, err := client.CreateCrawl(context.Background(), atlas.CreateCrawlRequest{
+		Url:          "https://docs.stripe.com",
+		MaxPages:     &maxPages,
+		MaxDepth:     &maxDepth,
+		IncludePaths: []string{"/docs/**"},
+		ExcludePaths: []string{"/docs/legacy/**"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Crawl Job Admitted: %s (Status: %s)\n", res.Response202.Id, res.Response202.Status)
+}
+```
+
+---
+
+## Asynchronous Lifecycle & Polling
+
+When a crawl is admitted, Atlas returns `202 Accepted` with a `Location: /v1/jobs/{jobId}` header and an initial job object:
+
+```json
+{
+  "id": "job_01j7abc...",
+  "status": "queued",
+  "createdAt": "2026-09-19T12:00:00.000Z"
+}
+```
+
+### Retrieving Results
+
+1. **Poll Status**: Call [`GET /v1/jobs/{jobId}`](/api-reference/get-job) periodically until `status` transitions to `"ready"` or `"failed"`.
+2. **Fetch Pages**: Once ready, fetch compiled page artifacts using cursor pagination via [`GET /v1/jobs/{jobId}/results`](/api-reference/job-results).
+3. **Inspect Errors**: Any individual page errors encountered during the crawl are accessible via [`GET /v1/jobs/{jobId}/errors`](/api-reference/job-errors).
+
+---
+
+## Create Batch Job
+
+URL: https://docs.atlas-compiler.com/api-reference/batch
+API Operation: POST /v1/batches
+Summary: Submit multi-URL batch compilation requests with parallel execution and isolated partial failure handling.
+
+Submit a batch of up to 1,000 URLs for parallel compilation. Atlas distributes the batch across its edge cluster, compiles pages concurrently, and isolates upstream errors so that failure on one URL does not prevent others from succeeding.
+
+---
+
+## Authentication & Headers
+
+To prevent duplicate batch creation on network retries, provide an `Idempotency-Key` header:
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/batches \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JBATCHJOB001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com/page-1",
+      "https://example.com/page-2",
+      "https://example.com/page-3"
+    ],
+    "formats": ["markdown", "links"]
+  }'
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const res = await atlas.createBatch({
+  urls: [
+    'https://example.com/page-1',
+    'https://example.com/page-2',
+    'https://example.com/page-3',
+  ],
+  formats: ['markdown', 'links'],
+  webhook: {
+    url: 'https://api.your-domain.com/webhooks/atlas',
+    events: ['job.ready', 'job.failed'],
+  },
+});
+
+console.log('Batch Job Created:', res.value.id);
+console.log('Status:', res.value.status);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+res = atlas.create_batch({
+    "urls": [
+        "https://example.com/page-1",
+        "https://example.com/page-2",
+        "https://example.com/page-3",
+    ],
+    "formats": ["markdown", "links"],
+    "webhook": "https://api.your-domain.com/webhooks/atlas",
+})
+
+print(f"Batch Job Created: {res.value['id']} (Status: {res.value['status']})")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.CreateBatch(context.Background(), atlas.CreateBatchRequest{
+		Urls: []string{
+			"https://example.com/page-1",
+			"https://example.com/page-2",
+			"https://example.com/page-3",
+		},
+		Formats: []string{"markdown", "links"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Batch Job Created: %s (Status: %s)\n", res.Response202.Id, res.Response202.Status)
+}
+```
+
+---
+
+## Tracking Progress & Fetching Results
+
+Atlas admits the batch job asynchronously, returning `202 Accepted` with the job descriptor:
+
+1. **Poll Status**: Call [`GET /v1/jobs/{jobId}`](/api-reference/get-job) to monitor `progress.completedItems` and `progress.failedItems`.
+2. **Retrieve Results**: Once complete, stream or paginate the compiled documents via [`GET /v1/jobs/{jobId}/results`](/api-reference/job-results).
+3. **Inspect Errors**: Any failed URLs can be inspected via [`GET /v1/jobs/{jobId}/errors`](/api-reference/job-errors).
+
+---
+
+## Get Job Status
+
+URL: https://docs.atlas-compiler.com/api-reference/get-job
+API Operation: GET /v1/jobs/{jobId}
+Summary: Retrieve execution status, lifecycle progression, item counters, and artifact readiness for any asynchronous job.
+
+Inspect the current status and execution lifecycle of an asynchronous job (such as a crawl, batch compile, or deferred compilation).
+
+---
+
+## Authentication & Headers
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X GET https://api.atlas-compiler.com/v1/jobs/job_01j7abc123 \
+  -H "Authorization: Bearer $ATLAS_API_KEY"
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const res = await atlas.getJob('job_01j7abc123');
+const job = res.value;
+
+console.log('Status:', job.status);
+if (job.progress) {
+  console.log(`Progress: ${job.progress.completedItems} completed, ${job.progress.queuedItems} queued`);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+res = client.get_job("job_01j7abc123")
+job = res.value
+
+print(f"Status: {job['status']}")
+if job.get("progress"):
+    print(f"Progress: {job['progress']['completedItems']} completed, {job['progress']['queuedItems']} queued")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	job, _, err := client.GetJob(context.Background(), "job_01j7abc123")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Status: %s\n", job.Status)
+	if job.Progress != nil {
+		fmt.Printf("Completed: %d, Queued: %d\n", job.Progress.CompletedItems, job.Progress.QueuedItems)
+	}
+}
+```
+
+---
+
+## Job Lifecycle States
+
+Jobs transition through the following state machine:
+
+```mermaid
+graph TD
+    Queued["queued"] --> Running["running"]
+    Running --> Ingesting["ingesting"]
+    Ingesting --> Ready["ready (Complete)"]
+    Running --> Failed["failed"]
+    Queued --> Cancelled["cancelled"]
+    Running --> Cancelled
+```
+
+| Status | Description |
+| :--- | :--- |
+| `queued` | Job has been admitted and is awaiting cluster execution slot. |
+| `running` | Pages are actively being fetched, rendered, and compiled across edge nodes. |
+| `ingesting` | All pages compiled; artifacts and indexes are finalizing. |
+| `ready` | Terminal success state. Compiled pages are ready for retrieval via [`GET /v1/jobs/{jobId}/results`](/api-reference/job-results). |
+| `failed` | Unrecoverable error occurred. Check [`GET /v1/jobs/{jobId}/errors`](/api-reference/job-errors). |
+| `cancelled` | Execution was explicitly halted by a user cancellation request. |
+
+---
+
+## Get Job Results
+
+URL: https://docs.atlas-compiler.com/api-reference/job-results
+API Operation: GET /v1/jobs/{jobId}/results
+Summary: Retrieve paginated results and compiled page artifacts for an asynchronous crawl, compile, or batch job.
+
+Fetch compiled page artifacts for an asynchronous crawl or batch job. Results are delivered using opaque cursor-based pagination to guarantee consistent ordering across high-volume crawls.
+
+---
+
+## Authentication & Headers
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X GET "https://api.atlas-compiler.com/v1/jobs/job_01j7abc123/results?limit=20" \
+  -H "Authorization: Bearer $ATLAS_API_KEY"
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const results = await atlas.listJobResults('job_01j7abc123', {
+  limit: 20,
+});
+
+for (const item of results.value.data) {
+  console.log('URL:', item.url);
+  console.log('Markdown:\n', item.markdown);
+}
+
+if (results.value.nextCursor) {
+  console.log('Next Cursor:', results.value.nextCursor);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+results = client.list_job_results("job_01j7abc123", limit=20)
+
+for item in results.value["data"]:
+    print(f"URL: {item['url']}")
+    print(item["markdown"][:200])
+
+if results.value.get("nextCursor"):
+    print(f"Next Cursor: {results.value['nextCursor']}")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	limit := 20
+	results, _, err := client.ListJobResults(context.Background(), "job_01j7abc123", nil, &limit)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, item := range results.Data {
+		if item.Url != nil {
+			fmt.Printf("URL: %s\n", *item.Url)
+		}
+	}
+
+	if results.NextCursor != nil {
+		fmt.Printf("Next Cursor: %s\n", *results.NextCursor)
+	}
+}
+```
+
+---
+
+## Pagination Pattern
+
+When iterating through large crawl jobs (e.g. 5,000 pages), supply the `nextCursor` value from the previous response in the `cursor` query parameter until `nextCursor` is `null` or omitted:
+
+```http
+GET /v1/jobs/job_01j7abc123/results?limit=50&cursor=cur_01j8xyz...
+```
+
+---
+
+## Get Job Errors
+
+URL: https://docs.atlas-compiler.com/api-reference/job-errors
+API Operation: GET /v1/jobs/{jobId}/errors
+Summary: Retrieve URL-level failure diagnostics, upstream status codes, and error categories for an asynchronous job.
+
+Inspect individual URL failures and execution diagnostics for an asynchronous crawl or batch compilation job.
+
+Because Atlas employs partial failure isolation, individual target page failures (such as a 404, 500 upstream server error, or network timeout) do not terminate the parent job. Use this endpoint to inspect failed items and diagnose upstream target issues.
+
+---
+
+## Authentication & Headers
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X GET "https://api.atlas-compiler.com/v1/jobs/job_01j7abc123/errors?limit=20" \
+  -H "Authorization: Bearer $ATLAS_API_KEY"
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const errors = await atlas.listJobErrors('job_01j7abc123', {
+  limit: 20,
+});
+
+for (const err of errors.value.data) {
+  console.error(`Failed: ${err.url} -> [${err.code}] ${err.detail}`);
+}
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+errors = client.list_job_errors("job_01j7abc123", limit=20)
+
+for err in errors.value["data"]:
+    print(f"Failed: {err['url']} -> [{err['code']}] {err['detail']}")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	limit := 20
+	errors, _, err := client.ListJobErrors(context.Background(), "job_01j7abc123", nil, &limit)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, e := range errors.Data {
+		url := ""
+		if e.Url != nil {
+			url = *e.Url
+		}
+		fmt.Printf("Failed: %s -> [%s] %s\n", url, e.Code, e.Detail)
+	}
+}
+```
+
+---
+
+## Common Error Diagnostics
+
+Individual failed items in `errors.data` include:
+- `id`: Unique error record identifier (`artifact_...`).
+- `url`: The target URL that could not be compiled.
+- `code`: RFC 9457 error code (e.g. `upstream_timeout`, `upstream_fetch_failed`, `unsupported_content_type`).
+- `detail`: Diagnostic description of why compilation failed.
+- `occurredAt`: ISO 8601 timestamp when the failure occurred.
+
+---
+
+## Cancel Job
+
+URL: https://docs.atlas-compiler.com/api-reference/cancel-job
+API Operation: DELETE /v1/jobs/{jobId}
+Summary: Cancel an in-flight asynchronous crawl, batch compilation, or long-running execution.
+
+Immediately requests cancellation of an active asynchronous job. When cancelled, Atlas terminates in-flight execution on edge nodes, prevents remaining queued items from running, and marks the job status as `"cancelled"`.
+
+---
+
+## Authentication & Headers
+
+Cancellation requires an `Idempotency-Key` header:
+
+---
+
+## Code Examples
+
+```bash cURL
+curl -X DELETE https://api.atlas-compiler.com/v1/jobs/job_01j7abc123 \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JCANCEL001"
+```
+
+```typescript TypeScript
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const result = await atlas.cancelJob('job_01j7abc123');
+
+console.log('Cancellation Accepted:', result.value.accepted);
+console.log('Job Status:', result.value.job.status);
+```
+
+```python Python
+
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = client.cancel_job("job_01j7abc123")
+
+print(f"Cancellation Accepted: {result.value['accepted']}")
+print(f"Job Status: {result.value['job']['status']}")
+```
+
+```go Go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	result, _, err := client.CancelJob(context.Background(), "job_01j7abc123")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Cancellation Accepted: %t\n", result.Accepted)
+	fmt.Printf("Job Status: %s\n", result.Job.Status)
+}
+```
+
+---
+
+## Response
+
+Returns `202 Accepted` indicating that the cancellation signal has been received and dispatched across cluster nodes:
+
+```json
+{
+  "accepted": true,
+  "job": {
+    "id": "job_01j7abc123",
+    "status": "cancelled",
+    "cancellationRequestedAt": "2026-09-19T12:05:00.000Z"
+  }
+}
+```
+
+---
+
+## SDK Overview
+
+URL: https://docs.atlas-compiler.com/sdk/overview
+
+Summary: Official, type-safe client libraries for TypeScript/JavaScript, Python, and Go with automatic workspace resolution and retry resilience.
+
+Atlas provides official, contract-tested client libraries for **TypeScript/JavaScript**, **Python**, and **Go**. Every SDK is generated directly from reviewed OpenAPI specifications, guaranteeing 100% schema alignment with the production Atlas API.
+
+---
+
+## Available SDKs
+
+  
+  
+
+---
+
+## Core design principles
+
+All official Atlas SDKs follow consistent architectural standards:
+
+1. **Automatic workspace resolution**: Authenticate using your Atlas API key (`atlas_...`). The SDK and backend resolve your workspace and default project automatically.
+2. **Type safety & schema fidelity**: Request parameters, responses, metadata, and error objects are strongly typed according to our public OpenAPI contracts.
+3. **Built-in resilience & exponential backoff**: Transient errors (HTTP 429 rate limits, 503 capacity saturation) are automatically retried with jitter when marked retryable.
+4. **Idempotency built-in**: Mutating compilation, crawl, and batch requests accept client-provided idempotency keys to ensure zero-duplicate billing on retries.
+5. **Zero external dependencies**: Our TypeScript library runs anywhere modern JavaScript executes (Node.js 18+, Bun, Deno, Cloudflare Workers, Next.js Edge).
+
+---
+
+## SDK feature support matrix
+
+| Feature | TypeScript / JavaScript | Python | Go |
+| :--- | :--- | :--- | :--- |
+| **Synchronous Scrape & Compile** | Supported | Supported | Supported |
+| **Domain Topology Mapping** | Supported | Supported | Supported |
+| **Distributed Crawls & Batches** | Supported | Supported | Supported |
+| **Cursor-based Pagination** | Supported | Supported | Supported |
+| **RFC 9457 Problem Errors** | Supported (`AtlasError`) | Supported (`AtlasError`) | Supported (`atlas.Error`) |
+| **Standard Webhooks Verification** | Supported (`verifyWebhookSignature`) | Supported (`verify_webhook_signature`) | Supported (`atlas.VerifyWebhook`) |
+| **Dual-Secret Rotation Support** | Supported | Supported | Supported |
+| **Automatic Retries with Jitter** | Supported | Supported | Supported |
+| **Streaming / Raw Operations** | Supported (`client.raw()`) | Supported (`client.raw()`) | Supported |
+
+---
+
+## TypeScript / JavaScript SDK
+
+URL: https://docs.atlas-compiler.com/sdk/javascript
+
+Summary: Official @atlascompiler/sdk package for Node.js, Next.js, Bun, Deno, and edge runtimes.
+
+The official `@atlascompiler/sdk` provides a lightweight, fully typed interface for interacting with the Atlas REST API. It uses the web standard `fetch` API, contains zero runtime dependencies, and works across Node.js 18+, Bun, Deno, and edge environments.
+
+---
+
+## Installation
+
+```bash npm
+npm install @atlascompiler/sdk
+```
+
+```bash pnpm
+pnpm add @atlascompiler/sdk
+```
+
+```bash yarn
+yarn add @atlascompiler/sdk
+```
+
+```bash bun
+bun add @atlascompiler/sdk
+```
+
+---
+
+## Initialization
+
+Initialize the `AtlasClient`. If no API key is passed in options, the client automatically reads from the `ATLAS_API_KEY` environment variable:
+
+```typescript
+
+const atlas = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY, // Optional if set in environment
+  timeout: 30000,                    // Request timeout in milliseconds (default: 30s)
+});
+```
+
+---
+
+## Core Operations
+
+### 1. Scrape a URL
+
+Synchronously extract clean Markdown and links from a single page:
+
+```typescript
+const result = await atlas.scrape({
+  url: 'https://news.ycombinator.com',
+  formats: ['markdown', 'links'],
+});
+
+console.log(result.value.metadata.title);
+console.log(result.value.data.markdown);
+```
+
+---
+
+### 2. Compile a Dynamic Page or SPA
+
+Execute visual DOM compilation preserving multi-column tables and code fences:
+
+```typescript
+const result = await atlas.compile({
+  url: 'https://stripe.com/pricing',
+  cache: { forceFresh: false },
+});
+
+if (result.status === 200) {
+  console.log('Markdown:\n', result.value.markdown);
+  console.log('Credits Used:', result.value.usage.credits);
+}
+```
+
+---
+
+### 3. Map Domain Topology
+
+Map sitemaps and site architecture without downloading page bodies:
+
+```typescript
+const mapResult = await atlas.map({
+  url: 'https://docs.github.com',
+  limit: 100,
+  sitemap: 'include',
+});
+
+if (mapResult.status === 200) {
+  console.log(`Discovered ${mapResult.value.links.length} URLs:`);
+  mapResult.value.links.forEach((link) => console.log(' -', link.url));
+}
+```
+
+---
+
+### 4. Create and Monitor a Crawl Job
+
+Start an asynchronous multi-page crawl with path filtering:
+
+```typescript
+// 1. Create crawl job
+const res = await atlas.createCrawl({
+  url: 'https://docs.stripe.com',
+  maxPages: 50,
+  maxDepth: 3,
+  includePaths: ['/docs/**'],
+  excludePaths: ['/docs/legacy/**'],
+});
+
+const jobId = res.value.id;
+console.log('Crawl admitted:', jobId);
+
+// 2. Poll for completion using built-in helper
+const job = await atlas.waitForJob(jobId);
+
+// 3. Fetch compiled pages
+if (job.status === 'ready') {
+  const pages = await atlas.listJobResults(jobId, { limit: 50 });
+  for (const item of pages.value.data) {
+    console.log(item.url, '->', item.markdown?.slice(0, 100));
+  }
+}
+```
+
+---
+
+## Error Handling
+
+All API errors throw typed `AtlasError` instances compliant with RFC 9457:
+
+```typescript
+
+const atlas = new AtlasClient();
+
+try {
+  await atlas.compile({ url: 'https://invalid-domain.example' });
+} catch (err) {
+  if (err instanceof AtlasError) {
+    console.error(`Status: ${err.status}`);
+    console.error(`Error Code: ${err.code}`);
+    console.error(`Detail: ${err.message}`);
+    console.error(`Request ID: ${err.requestId}`);
+    console.error(`Retryable: ${err.retryable}`);
+  }
+}
+```
+
+---
+
+## Verifying webhook signatures
+
+The SDK exports `verifyWebhookSignature` to authenticate incoming Standard Webhooks requests from Atlas using HMAC-SHA256:
+
+```typescript
+
+// In an Express, Next.js API route, or Hono handler:
+const result = await verifyWebhookSignature({
+  payload: req.rawBody, // raw body string or Uint8Array
+  headers: req.headers, // Node.js req.headers or Web Standard Headers
+  secret: process.env.ATLAS_WEBHOOK_SECRET!,
+  previousSecret: process.env.ATLAS_OLD_WEBHOOK_SECRET, // Optional 24h rotation support
+  toleranceSeconds: 300,                               // 5-minute replay window (default: 300)
+});
+
+if (!result.valid) {
+  console.error('Webhook verification rejected:', result.error);
+  return res.status(401).send('Unauthorized');
+}
+
+const event = result.event;
+console.log(`Verified ${event.type} for job ${event.data.jobId}`);
+return res.status(200).send('OK');
+```
+
+### Verification parameters
+
+| Option | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `payload` | `string \| Uint8Array` | **Yes** | The unparsed raw HTTP request body string or buffer. |
+| `headers` | `Record \| Headers` | **Yes** | Incoming request headers containing `webhook-id`, `webhook-timestamp`, and `webhook-signature`. |
+| `secret` | `string \| string[]` | **Yes** | Your workspace default webhook secret or endpoint secret (`whsec_...`). Also accepts an array of secrets. |
+| `previousSecret` | `string` | No | Your previous secret during the 24-hour secret rotation grace period. |
+| `toleranceSeconds` | `number` | No | Maximum allowable clock drift in seconds (default: `300`). Pass negative value to disable. |
+
+### Return value
+
+Returns a promise resolving to `WebhookVerifyResult`:
+- `valid`: `true` if signature and timestamp are authentic, `false` otherwise.
+- `error`: Error code if invalid (`'missing_headers'`, `'invalid_format'`, `'timestamp_out_of_range'`, `'signature_mismatch'`).
+- `event`: Parsed JSON event object if `valid === true`.
+
+---
+
+## Python SDK
+
+URL: https://docs.atlas-compiler.com/sdk/python
+
+Summary: Official atlascompiler package for Python applications, AI agents, and RAG data pipelines.
+
+The official `atlascompiler` Python SDK provides a modern, type-annotated client powered by `httpx`. It is designed for seamless integration with Python AI workflows, LangChain, LlamaIndex, CrewAI, and FastAPI backends.
+
+---
+
+## Installation
+
+```bash pip
+pip install atlascompiler
+```
+
+```bash poetry
+poetry add atlascompiler
+```
+
+```bash uv
+uv add atlascompiler
+```
+
+---
+
+## Initialization
+
+Initialize the `AtlasClient`. Credentials are automatically resolved from the `ATLAS_API_KEY` environment variable if not passed explicitly:
+
+```python
+
+from atlascompiler import AtlasClient
+
+# Reads ATLAS_API_KEY from environment automatically
+client = AtlasClient()
+
+# Or pass explicitly:
+client = AtlasClient(api_key="atlas_...", timeout=30.0)
+```
+
+The client also supports the context manager pattern:
+
+```python
+with AtlasClient() as client:
+    result = client.scrape({"url": "https://example.com"})
+    print(result.value["data"]["markdown"])
+```
+
+---
+
+## Core Operations
+
+### 1. Scrape a URL
+
+```python
+result = client.scrape({
+    "url": "https://news.ycombinator.com",
+    "formats": ["markdown", "links"]
+})
+
+print("Title:", result.value["metadata"]["title"])
+print("Markdown:\n", result.value["data"]["markdown"])
+```
+
+---
+
+### 2. Compile Dynamic Pages & Tables
+
+```python
+result = client.compile({
+    "url": "https://stripe.com/pricing",
+    "cache": {"forceFresh": False}
+})
+
+print("Compiled Markdown:\n", result.value["markdown"])
+```
+
+---
+
+### 3. Map Domain Topology
+
+```python
+result = client.map({
+    "url": "https://docs.github.com",
+    "limit": 100,
+    "sitemap": "include"
+})
+
+print(f"Discovered {len(result.value['links'])} URLs:")
+for link in result.value["links"]:
+    print(" -", link["url"])
+```
+
+---
+
+### 4. Asynchronous Crawls
+
+```python
+# 1. Create crawl job
+crawl = client.create_crawl({
+    "url": "https://docs.stripe.com",
+    "maxPages": 50,
+    "includePaths": ["/docs/**"],
+})
+
+job_id = crawl.value["id"]
+print(f"Admitted crawl job: {job_id}")
+
+# 2. Wait for completion using built-in helper
+job = client.wait_for_job(job_id)
+
+# 3. Retrieve compiled pages
+if job["status"] == "ready":
+    results = client.list_job_results(job_id, limit=50)
+    for item in results.value["data"]:
+        print(item["url"], "->", len(item["markdown"]))
+```
+
+---
+
+## Error Handling
+
+The SDK raises `AtlasError` (or `AtlasApiError`) containing RFC 9457 Problem Details:
+
+```python
+from atlascompiler import AtlasClient, AtlasError
+
+client = AtlasClient()
+
+try:
+    client.compile({"url": "https://invalid-domain.example"})
+except AtlasError as err:
+    print(f"HTTP Status: {err.status}")
+    print(f"Machine Code: {err.code}")
+    print(f"Detail: {err.message}")
+    print(f"Request ID: {err.request_id}")
+    print(f"Retryable: {err.retryable}")
+```
+
+---
+
+## Verifying webhook signatures
+
+The Python SDK exports `verify_webhook_signature` to validate incoming Standard Webhooks requests from Atlas:
+
+```python
+
+from atlascompiler import verify_webhook_signature
+
+# In your Flask, FastAPI, or Django webhook route:
+result = verify_webhook_signature(
+    payload=request.get_data(as_text=True),  # raw bytes or string
+    headers=request.headers,                 # dictionary or mapping of headers
+    secret=os.environ["ATLAS_WEBHOOK_SECRET"],
+    previous_secret=os.getenv("ATLAS_OLD_WEBHOOK_SECRET"),  # optional 24h rotation support
+    tolerance_seconds=300,                                  # 5-minute replay window (default: 300)
+)
+
+if not result.valid:
+    print(f"Webhook verification rejected: {result.error}")
+    raise ValueError("Invalid webhook signature")
+
+event = result.event
+print(f"Verified event {event['type']} for job {event['data']['jobId']}")
+```
+
+### Verification parameters
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `payload` | `str \| bytes` | **Yes** | The exact unparsed HTTP request body string or raw bytes. |
+| `headers` | `Mapping[str, Any]` | **Yes** | Request headers dictionary containing `webhook-id`, `webhook-timestamp`, and `webhook-signature`. |
+| `secret` | `str \| list[str]` | **Yes** | Primary webhook secret (`whsec_...`) or list of valid candidate secrets. |
+| `previous_secret` | `str \| None` | No | Previous secret for zero-downtime 24-hour secret rotation. |
+| `tolerance_seconds` | `int` | No | Maximum allowed clock skew in seconds (default: `300`). Pass negative value to disable. |
+
+### Return value
+
+Returns a `WebhookVerifyResult` named tuple / model:
+- `result.valid`: Boolean indicating whether the signature and timestamp are valid.
+- `result.error`: Error reason string if invalid (`"missing_headers"`, `"invalid_format"`, `"timestamp_out_of_range"`, `"signature_mismatch"`).
+- `result.event`: Parsed event dictionary when `result.valid is True`.
+
+---
+
+## Go SDK
+
+URL: https://docs.atlas-compiler.com/sdk/go
+
+Summary: Official go.atlas-compiler.com/sdk package for high-concurrency Go microservices, scrapers, and agents.
+
+The official Atlas Go SDK provides an idiomatic, context-aware, type-safe client with zero third-party dependencies outside the Go standard library.
+
+---
+
+## Installation
+
+```bash
+go get go.atlas-compiler.com/sdk
+```
+
+Requires **Go 1.22+**.
+
+---
+
+## Initialization
+
+Initialize the client with your Atlas API key:
+
+```go
+package main
+
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	// Initialize with API key (or reads ATLAS_API_KEY from environment)
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+}
+```
+
+---
+
+## Core Operations
+
+### 1. Scrape a URL
+
+```go
+package main
+
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	ctx := context.Background()
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	result, meta, err := client.Scrape(ctx, atlas.ScrapeUrlRequest{
+		Url: "https://news.ycombinator.com",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("HTTP Status: %d (Replayed: %t)\n", meta.StatusCode, meta.Replayed)
+	if result.Data.Markdown != nil {
+		fmt.Println(*result.Data.Markdown)
+	}
+}
+```
+
+---
+
+### 2. Compile Dynamic Web Pages & Tables
+
+```go
+result, _, err := client.Compile(ctx, atlas.CompileUrlRequest{
+	Url: "https://stripe.com/pricing",
+})
+if err != nil {
+	panic(err)
+}
+
+if result.Response200 != nil {
+	fmt.Println(result.Response200.Markdown)
+}
+```
+
+---
+
+### 3. Map Domain Topology
+
+```go
+limit := 50
+mapRes, _, err := client.Map(ctx, atlas.MapUrlRequest{
+	Url:   "https://docs.github.com",
+	Limit: &limit,
+})
+if err != nil {
+	panic(err)
+}
+
+fmt.Printf("Discovered %d URLs\n", len(mapRes.Links))
+for _, link := range mapRes.Links {
+	fmt.Println(" -", link.Url)
+}
+```
+
+---
+
+### 4. Asynchronous Crawls & Job Polling
+
+```go
+// 1. Create crawl job
+maxPages := 50
+crawl, _, err := client.CreateCrawl(ctx, atlas.CreateCrawlRequest{
+	Url:      "https://docs.stripe.com",
+	MaxPages: &maxPages,
+})
+if err != nil {
+	panic(err)
+}
+
+jobID := crawl.Id
+fmt.Printf("Crawl admitted: %s\n", jobID)
+
+// 2. Poll status
+for {
+	job, _, err := client.GetJob(ctx, jobID)
+	if err != nil {
+		panic(err)
+	}
+
+	if job.Status == "ready" || job.Status == "failed" {
+		break
+	}
+	time.Sleep(2 * time.Second)
+}
+
+// 3. Retrieve results
+results, _, err := client.ListJobResults(ctx, jobID, nil, nil)
+if err != nil {
+	panic(err)
+}
+
+for _, item := range results.Data {
+	if item.Url != nil {
+		fmt.Println(*item.Url, "-> completed")
+	}
+}
+```
+
+---
+
+## Error Handling
+
+API errors implement Go's standard `error` interface and unmarshal into `*atlas.Problem` containing RFC 9457 details:
+
+```go
+var problem *atlas.Problem
+if errors.As(err, &problem) {
+	fmt.Printf("HTTP Status: %d\n", problem.Status)
+	fmt.Printf("Code: %s\n", problem.Code)
+	fmt.Printf("Detail: %s\n", problem.Detail)
+	fmt.Printf("Request ID: %s\n", problem.RequestId)
+	fmt.Printf("Retryable: %t\n", problem.Retryable)
+}
+```
+
+---
+
+## Verifying webhook signatures
+
+The Go SDK provides `atlas.VerifyWebhook` and `atlas.VerifyWebhookSignature` to authenticate incoming Standard Webhooks requests from Atlas:
+
+```go
+package main
+
+	"io"
+	"log"
+	"net/http"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func handleWebhook(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Cannot read request body", http.StatusBadRequest)
+		return
+	}
+
+	secret := os.Getenv("ATLAS_WEBHOOK_SECRET")
+
+	// Verify Standard Webhooks signature against incoming headers
+	result, err := atlas.VerifyWebhook(body, r.Header, secret)
+	if err != nil || !result.Valid {
+		log.Printf("Webhook rejected: %s (err: %v)", result.Error, err)
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("Received verified event: %v", result.Event["type"])
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+### Advanced verification options
+
+For dual-secret rotation or custom clock drift tolerance, use `atlas.VerifyWebhookSignature`:
+
+```go
+tolerance := 5 * time.Minute
+result, err := atlas.VerifyWebhookSignature(atlas.WebhookVerifyOptions{
+	Payload:        body,
+	Headers:        r.Header,
+	Secret:         os.Getenv("ATLAS_WEBHOOK_SECRET"),
+	PreviousSecret: os.Getenv("ATLAS_OLD_WEBHOOK_SECRET"), // 24-hour secret rotation support
+	Tolerance:      &tolerance,
+})
+```
+
+### Return value
+
+Returns `(*atlas.WebhookVerifyResult, error)`:
+- `result.Valid`: `true` if valid, `false` otherwise.
+- `result.Error`: Error reason string if invalid (`"missing_headers"`, `"invalid_format"`, `"timestamp_out_of_range"`, `"signature_mismatch"`).
+- `result.Event`: Unmarshaled JSON event map (`map[string]any`) when valid.
+
+---
+
+## Model Context Protocol (MCP) Hub
+
+URL: https://docs.atlas-compiler.com/ai/mcp-overview
+
+Summary: Equip AI coding assistants and autonomous agents with deterministic, token-efficient web compilation using the open Model Context Protocol.
+
+> **Protocol Specification:** Model Context Protocol `2026-07-28`  
+> **Server Package:** `@atlascompiler/mcp`  
+> **Streamable HTTP Endpoint:** `https://api.atlas-compiler.com/mcp`
+
+The **Atlas Model Context Protocol (MCP) server** gives LLMs, AI coding assistants (Cursor, Windsurf, Claude Desktop, VS Code), and autonomous agent frameworks deterministic, token-budgeted access to the live web.
+
+Rather than feeding raw, noisy HTML into your model's context window—which burns token budgets and causes hallucinations—Atlas compiles dynamic web pages and single-page applications (SPAs) into clean, visual Markdown, tabular data, and structured AST graphs before delivering them to your agent.
+
+---
+
+## Why Atlas for AI Agents?
+
+```mermaid
+graph TD
+    User["Developer Prompt in Cursor / Claude"] --> Agent["AI Agent (Claude 3.7 / GPT-4o)"]
+    Agent -->|"MCP Tool Call: atlas_compile"| AtlasMCP["Atlas MCP Server"]
+    AtlasMCP -->|"Deterministic Edge Pipeline"| LiveWeb["Live Web (SPAs, Tables, Docs)"]
+    LiveWeb -->|"Rendered HTML"| AtlasMCP
+    AtlasMCP -->|"Clean Markdown + Token Budget"| Agent
+    Agent -->|"Accurate Synthesis"| User
+```
+
+Traditional web scrapers and browser-use tools return messy raw DOM trees, cookies banners, and thousands of lines of JavaScript bundles. Atlas solves the core failure modes of agentic web access:
+
+1. **Token Tax Elimination**: Atlas eliminates 60% to 80% of unnecessary markup, headers, navigation chrome, and tracking scripts, returning only semantically relevant Markdown.
+2. **Context Window Protection**: Every Atlas MCP tool enforces character budgets (`max_output_chars`). If a document exceeds the budget, Atlas cleanly truncates the text and returns navigable `atlas://` resource links so the agent never overflows its context window.
+3. **Table & Code Precision**: Complex multi-column tables are compiled into GitHub Flavored Markdown (GFM) pipe tables, and syntax-highlighted code fences preserve indentation and language tags.
+4. **Zero Data Retention (ZDR)**: Atlas does not retain compiled web content or LLM prompts on disk. Workflows operating on sensitive corporate documentation remain strictly private.
+
+---
+
+## 1-Click Interactive Setup
+
+Run the official interactive setup wizard in your terminal. It detects your installed AI editors, prompts for your Atlas API key, and automatically merges the server configuration into your local editor settings:
+
+The wizard supports the following options:
+
+```bash
+# Configure user-level settings globally across all projects
+npx -y @atlascompiler/mcp init --global
+
+# Configure project-level settings (.cursor/mcp.json or .vscode/mcp.json)
+npx -y @atlascompiler/mcp init --project
+
+# Verify currently resolved credentials and active configuration
+npx -y @atlascompiler/mcp whoami
+```
+
+---
+
+## Dual-Transport Architecture
+
+Atlas MCP supports both standard transports specified by the Model Context Protocol:
+
+```
+                      ┌────────────────────────────────────────┐
+                      │             AI Client / IDE            │
+                      │  (Cursor, Claude Desktop, Windsurf)    │
+                      └──────────────────┬─────────────────────┘
+                                         │
+                   ┌─────────────────────┴─────────────────────┐
+                   │                                           │
+         [Local Stdio Transport]                     [Streamable HTTP]
+                   │                                           │
+                   ▼                                           ▼
+      ┌─────────────────────────┐               ┌─────────────────────────────┐
+      │  @atlascompiler/mcp CLI  │               │ POST /mcp                   │
+      │  (npx -y @atlas...)     │               │ https://api.atlas-compiler...│
+      └────────────┬────────────┘               └──────────────┬──────────────┘
+                   │                                           │
+                   └─────────────────────┬─────────────────────┘
+                                         │
+                                         ▼
+                            ┌────────────────────────┐
+                            │    Atlas Edge Engine   │
+                            └────────────────────────┘
+```
+
+| Transport | Primary Use Case | Connection Details |
+| :--- | :--- | :--- |
+| **stdio Transport** | Local desktop editors (Cursor, Claude Desktop, Windsurf, VS Code) | Run via `npx -y @atlascompiler/mcp` as a subprocess. Resolves credentials from `~/.atlas/credentials.json` or `ATLAS_API_KEY`. |
+| **Streamable HTTP** | Cloud agents, serverless runners, LangGraph, CrewAI, Docker containers | Direct HTTP `POST https://api.atlas-compiler.com/mcp` with `Authorization: Bearer `. Stateless and horizontally scalable. |
+
+---
+
+## Capabilities Support Matrix
+
+Atlas implements the complete Model Context Protocol `2026-07-28` specification:
+
+| Capability | Status | Description |
+| :--- | :--- | :--- |
+| **Tools** | **Supported** | 5 deterministic web extraction tools (`atlas_scrape`, `atlas_compile`, `atlas_map`, `atlas_crawl`, `atlas_batch_compile`). |
+| **Resources** | **Supported** | Virtual `atlas://` URI scheme providing lazy access to compilation artifacts, full ASTs, and crawl pagination. |
+| **Prompts** | **Supported** | Pre-built prompts for documentation synthesis, competitor analysis, and API reverse-engineering. |
+| **OAuth 2.0 Protected Resource** | **Supported** | RFC 8414 resource server metadata exposed at `/.well-known/oauth-protected-resource`. |
+| **Security & Host Validation** | **Enforced** | Strict Host and Origin header validation to protect against DNS rebinding attacks. |
+
+---
+
+## Native MCP Tools Summary
+
+Atlas exposes 5 core tools designed specifically for LLM tool calling:
+
+| Tool Name | Operation | When to Use |
+| :--- | :--- | :--- |
+| [`atlas_scrape`](/ai/tools-reference#atlas-scrape) | Fast-path single-page extraction | Quick retrieval of blogs, news articles, and simple documentation pages with minimal latency. |
+| [`atlas_compile`](/ai/tools-reference#atlas-compile) | Visual layout compilation | Complex layouts, SPAs, pricing matrices, and technical documentation where table structure is critical. |
+| [`atlas_map`](/ai/tools-reference#atlas-map) | High-speed URL topology mapping | Discovering site architecture, XML sitemaps, and documentation links without downloading page bodies. |
+| [`atlas_crawl`](/ai/tools-reference#atlas-crawl) | Recursive multi-page spidering | Crawling multi-page documentation sections with include and exclude glob patterns. |
+| [`atlas_batch_compile`](/ai/tools-reference#atlas-batch-compile) | Parallel multi-URL compilation | Compiling up to 20 URLs simultaneously with per-page budget enforcement and error isolation. |
+
+---
+
+## Agent Skill Installation
+
+For agent environments that discover custom skills (such as Antigravity, Claude Code, or Cursor), you can install the official Atlas Agent Skill directly into your workspace:
+
+```bash
+# Install to project-level .agents/skills/atlas/SKILL.md
+npx -y @atlascompiler/mcp skill
+
+# Install globally to ~/.agents/skills/atlas/SKILL.md
+npx -y @atlascompiler/mcp skill --global
+```
+
+---
+
+## Next Steps
+
+---
+
+## Cursor Setup & Agent Workflows
+
+URL: https://docs.atlas-compiler.com/ai/cursor
+
+Summary: Connect Atlas MCP to Cursor IDE for real-time web compilation, API documentation research, and codebase synthesis.
+
+Cursor supports the Model Context Protocol (MCP), enabling its Composer and Chat agents to directly call external tools during code generation and debugging. 
+
+By connecting Atlas to Cursor, your agent can compile live web pages, read documentation sites, extract accurate pricing tables, and inspect sitemaps without leaving your editor.
+
+---
+
+## 1-Click Interactive Setup
+
+The fastest way to configure Cursor is with the Atlas MCP setup wizard:
+
+To configure Cursor specifically:
+
+```bash
+# Global configuration (available in all Cursor workspaces)
+npx -y @atlascompiler/mcp init --global
+
+# Project-level configuration (committed to your repository)
+npx -y @atlascompiler/mcp init --project
+```
+
+The wizard validates your Atlas API key against `https://api.atlas-compiler.com/v1/health` and automatically merges the configuration into your Cursor settings file.
+
+---
+
+## Manual Configuration
+
+If you prefer manual configuration, add the Atlas server to your Cursor MCP settings.
+
+### File Locations
+
+- **Global Configuration:**  
+  - macOS & Linux: `~/.cursor/mcp.json`  
+  - Windows: `%USERPROFILE%\.cursor\mcp.json`
+- **Project Configuration:**  
+  - `.cursor/mcp.json` in your repository root.
+
+### Configuration Format
+
+Add the following block to your `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "npx",
+      "args": ["-y", "@atlascompiler/mcp"],
+      "env": {
+        "ATLAS_API_KEY": "atlas_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+  Cursor automatically restarts active MCP servers when you save changes to `mcp.json`. You can verify connection status in Cursor under **Settings > Features > MCP**.
+
+---
+
+## Installing the Atlas Agent Skill
+
+Cursor agents discover custom skills defined in your workspace or global configuration. Install the canonical Atlas Agent Skill to teach Cursor how to select the best Atlas tools automatically:
+
+```bash
+# Install to current project (.agents/skills/atlas/SKILL.md)
+npx -y @atlascompiler/mcp skill
+
+# Install globally (~/.agents/skills/atlas/SKILL.md)
+npx -y @atlascompiler/mcp skill --global
+```
+
+The skill provides Cursor with zero-shot decision playbooks for web extraction, preventing unnecessary browser automation and token waste.
+
+---
+
+## Agent Prompt Recipes & Workflows
+
+Once installed, Cursor Chat and Composer have access to all 5 Atlas tools (`atlas_scrape`, `atlas_compile`, `atlas_map`, `atlas_crawl`, `atlas_batch_compile`).
+
+### 1. Compile Live Documentation for Code Generation
+
+Instruct Cursor to fetch the latest SDK documentation before writing integration code:
+
+```text
+@atlas compile https://docs.stripe.com/api/payment_intents/create and implement a TypeScript function to create a recurring subscription with metadata.
+```
+
+**Why this works**: Instead of relying on training data that might be out of date, Cursor calls `atlas_compile`, receives clean GFM Markdown with exact parameter tables and types, and generates accurate, hallucination-free code.
+
+---
+
+### 2. Map Site Architecture & Discover Endpoints
+
+Before building a scraper or reverse-engineering a public service, map the target domain:
+
+```text
+@atlas map https://docs.github.com/en/rest and list all URL endpoints related to GitHub Actions webhooks.
+```
+
+**Why this works**: `atlas_map` inspects XML sitemaps and root HTML link topologies at edge speed, returning structured URL lists without downloading heavy page bodies.
+
+---
+
+### 3. Spider Multi-Page Documentation
+
+When refactoring or upgrading a library across multiple documentation pages:
+
+```text
+@atlas crawl https://nextjs.org/docs with maxPages 5 and includePaths ["/docs/app/building-your-application/routing/**"] to explain how parallel routes work.
+```
+
+**Why this works**: Cursor triggers `atlas_crawl`, which compiles the relevant subset of pages and passes structured summaries back to the LLM context.
+
+---
+
+### 4. Extract Tabular Data & Pricing Matrices
+
+```text
+@atlas compile https://openai.com/api/pricing/ and write a TypeScript type definition and rate card for all GPT-4o models.
+```
+
+**Why this works**: Atlas compiles complex dynamic tables into exact GFM pipe tables, preserving row and column relationships that raw HTML scrapers scramble.
+
+---
+
+## Cursor Best Practices
+
+  **Context Window Management**: Atlas automatically truncates large documents at `max_output_chars` (default: 30,000 characters) and includes an `atlas://` resource URI. If you need a more concise response, instruct Cursor: `@atlas scrape https://example.com with max_output_chars 5000`.
+
+  **Environment Variables**: Never commit your Atlas API key in `.cursor/mcp.json` if your repository is public. Instead, set the `ATLAS_API_KEY` environment variable in your shell profile (`~/.zshrc` or `~/.bashrc`), and Atlas MCP CLI will automatically resolve it.
+
+---
+
+## Verifying Setup
+
+1. Open Cursor and navigate to **Cursor Settings** (`Cmd+,` or `Ctrl+,`).
+2. Search for **MCP**.
+3. Confirm that `atlas` is listed with a green indicator showing **Connected**.
+4. Open Cursor Chat (`Cmd+L` or `Ctrl+L`) and type:
+   ```text
+   Use @atlas to scrape https://example.com and tell me its title.
+   ```
+5. Cursor will show a tool call to `atlas_scrape` and display the compiled result.
+
+---
+
+## Claude Desktop Setup & Research Workflows
+
+URL: https://docs.atlas-compiler.com/ai/claude-desktop
+
+Summary: Empower Claude Desktop with deterministic web compilation, research capabilities, and tabular data extraction using Atlas MCP.
+
+Anthropic's Claude Desktop provides native support for the Model Context Protocol (MCP). By connecting Atlas to Claude Desktop, Claude gains the ability to autonomously browse, compile, and analyze live web content, complex documentation, and dynamic SPAs without losing formatting or blowing token budgets.
+
+---
+
+## 1-Click Interactive Setup
+
+The official Atlas setup wizard configures Claude Desktop automatically:
+
+Run the command with the `--global` flag:
+
+```bash
+npx -y @atlascompiler/mcp init --global
+```
+
+The wizard:
+1. Prompts for your Atlas API key.
+2. Locates your Claude Desktop configuration file.
+3. Automatically inserts the `atlas` MCP server definition without overwriting other configured tools.
+4. Validates connectivity with the Atlas API.
+
+---
+
+## Manual Configuration
+
+To configure Claude Desktop manually, locate your configuration file based on your operating system:
+
+| Operating System | Configuration File Path |
+| :--- | :--- |
+| **macOS** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| **Windows** | `%APPDATA%\Claude\claude_desktop_config.json` |
+| **Linux** | `~/.config/Claude/claude_desktop_config.json` |
+
+### Configuration File Content
+
+Add the `atlas` server block under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "npx",
+      "args": ["-y", "@atlascompiler/mcp"],
+      "env": {
+        "ATLAS_API_KEY": "atlas_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+  If you have existing MCP servers in `claude_desktop_config.json`, simply add `"atlas"` alongside them inside the `"mcpServers"` object. Restart Claude Desktop after updating the file.
+
+---
+
+## Troubleshooting Node.js Path in Claude Desktop
+
+On macOS and Linux, GUI applications like Claude Desktop often run in a minimal shell environment that might not include your custom Node.js path (especially when using version managers like `nvm`, `fnm`, or `asdf`).
+
+If Claude Desktop displays a red error indicator for Atlas:
+
+1. Determine the absolute path to `npx` in your terminal:
+   ```bash
+   which npx
+   # Output example: /usr/local/bin/npx or ~/.nvm/versions/node/v22.0.0/bin/npx
+   ```
+2. Replace `"command": "npx"` with the absolute path in `claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "atlas": {
+         "command": "/usr/local/bin/npx",
+         "args": ["-y", "@atlascompiler/mcp"],
+         "env": {
+           "ATLAS_API_KEY": "atlas_your_api_key_here"
+         }
+       }
+     }
+   }
+   ```
+3. Restart Claude Desktop.
+
+### Checking Claude Desktop Logs
+
+If you encounter issues, inspect Claude's local MCP logs:
+- **macOS:** `~/Library/Logs/Claude/mcp*.log`
+- **Windows:** `%APPDATA%\Claude\logs\mcp*.log`
+
+---
+
+## Conversational Research Workflows
+
+With Atlas connected, you can ask Claude to perform deep web research tasks directly in conversation:
+
+### 1. Financial & Corporate Research
+
+> "Use Atlas to compile the latest quarterly earnings release from https://investor.apple.com/... and extract the services revenue breakdown into a summary table comparing YoY growth."
+
+**What happens**: Claude calls `atlas_compile`, which deterministically preserves financial tables with proper alignment, allowing Claude to calculate percentage variances with 100% data fidelity.
+
+---
+
+### 2. Multi-Source Technical Comparison
+
+> "I want to compare the deployment options of Fly.io and Render. Use Atlas to scrape https://fly.io/docs/about/overview/ and https://render.com/docs/web-services, and synthesize their differences regarding persistent volumes and regional multi-cloud."
+
+**What happens**: Claude calls `atlas_scrape` on both URLs sequentially, receiving clean Markdown without sidebar navigation or cookie banners, and performs an unbiased technical synthesis.
+
+---
+
+### 3. Exploring Large Site Topologies
+
+> "Use Atlas to map https://docs.astronomer.io and identify all documentation guides related to Apache Airflow DAG authoring."
+
+**What happens**: Claude calls `atlas_map`, receives the full URL graph and sitemap discovery results, filters for relevant paths, and proposes a tailored reading list.
+
+---
+
+## Token Efficiency & Privacy in Claude
+
+- **Zero Data Retention (ZDR)**: Your browsing queries and compiled web documents are never stored or logged on disk by Atlas.
+- **Token Budget Protection**: Claude's context window is protected by Atlas's automatic 30,000-character budgeting and heading extraction.
+- **Deterministic Tables**: Unlike LLM-based web browsing which frequently misaligns table columns, Atlas's compiler reconstructs DOM table geometries into clean GFM pipe tables before Claude sees them.
+
+---
+
+## Windsurf (Codeium) Setup & Cascade Workflows
+
+URL: https://docs.atlas-compiler.com/ai/windsurf
+
+Summary: Configure Atlas MCP with Windsurf IDE to empower Cascade agents with deterministic web extraction and real-time documentation retrieval.
+
+Windsurf, developed by Codeium, natively supports the Model Context Protocol (MCP) in its autonomous **Cascade** agent. By connecting Atlas to Windsurf, Cascade can independently browse the web, compile external documentation, extract API references, and verify third-party interfaces while refactoring your code.
+
+---
+
+## 1-Click Interactive Setup
+
+The official Atlas setup wizard configures Windsurf automatically:
+
+Run the command with the `--global` flag:
+
+```bash
+npx -y @atlascompiler/mcp init --global
+```
+
+The wizard detects Windsurf's configuration directory, adds the `atlas` MCP server configuration, and verifies connectivity.
+
+---
+
+## Manual Configuration
+
+To configure Windsurf manually, open or create the MCP configuration file:
+
+### Configuration File Path
+
+- **macOS & Linux:** `~/.codeium/windsurf/mcp_config.json`
+- **Windows:** `%USERPROFILE%\.codeium\windsurf\mcp_config.json`
+
+### Configuration Content
+
+Add the `atlas` server definition under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "npx",
+      "args": ["-y", "@atlascompiler/mcp"],
+      "env": {
+        "ATLAS_API_KEY": "atlas_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+After updating the file, reload Windsurf or open the **Windsurf Settings > MCP** panel to verify that the Atlas server status is active.
+
+---
+
+## Cascade Agent Workflows
+
+Cascade operates as an agentic pair-programmer capable of taking multi-step actions. Here are several workflows showcasing how Cascade leverages Atlas tools:
+
+### 1. Zero-Shot Library Implementation
+
+Instruct Cascade to reference current documentation when generating boilerplate:
+
+```text
+Cascade, create a client for the PostHog API using TypeScript. First use @atlas to compile https://posthog.com/docs/api/capture and ensure our event batching schema matches their official specifications.
+```
+
+**Workflow**:
+1. Cascade calls `atlas_compile` to fetch the PostHog API specifications.
+2. Atlas strips away navigation chrome, compiling the request schema and headers into GFM tables.
+3. Cascade inspects the clean Markdown and writes the exact TypeScript interface without schema drift.
+
+---
+
+### 2. Multi-Page Framework Migration
+
+When upgrading dependencies across breaking versions:
+
+```text
+We are migrating our routing layer to SvelteKit 2. Use @atlas to crawl https://svelte.dev/docs/kit with maxPages 10 and includePaths ["/docs/kit/load**"] to discover the exact breaking changes in server load functions.
+```
+
+**Workflow**:
+1. Cascade invokes `atlas_crawl` with path filtering.
+2. Atlas traverses the documentation section, compiling pages concurrently.
+3. Cascade receives structured summaries and autonomously updates your codebase files.
+
+---
+
+### 3. Rapid Site Topology Discovery
+
+```text
+Use @atlas to map https://huggingface.co/docs/transformers and list all available model architecture documentation guides.
+```
+
+---
+
+## Windsurf Best Practices
+
+  **Keep Cascade Focused**: Provide specific target URLs to Cascade when prompting. While Cascade can navigate links using `atlas_map`, providing a direct documentation URL alongside `@atlas compile` ensures the fastest turnaround.
+
+  **API Key Security**: For shared projects, configure `ATLAS_API_KEY` in your personal environment variables rather than hardcoding it in repository-committed files. Atlas MCP CLI automatically falls back to environment variables.
+
+---
+
+## MCP Tools Reference
+
+URL: https://docs.atlas-compiler.com/ai/tools-reference
+
+Summary: Comprehensive parameter schemas, return types, and usage examples for all 5 native Atlas Model Context Protocol tools.
+
+The Atlas Model Context Protocol (MCP) server exposes 5 core tools for LLM tool calling. Each tool is built with strict parameter validation using Zod, context window protection via automatic character budgeting, and standardized error responses.
+
+---
+
+## Tool Selection Decision Matrix
+
+Agents should consult this decision matrix to determine the most cost-effective and low-latency tool for any web task:
+
+| User Intent | Tool | Latency | Primary Advantage |
+| :--- | :--- | :--- | :--- |
+| Read single article, blog post, or standard page | `atlas_scrape` | ~1.3s | Fast extraction with minimal overhead and optional link discovery. |
+| Extract pricing matrices, complex tables, SPAs | `atlas_compile` | ~1.6s | Full deterministic layout compilation preserving GFM tables and AST graphs. |
+| Map all URLs or discover sitemaps on a domain | `atlas_map` | ~800ms | Rapid link graph and XML sitemap discovery without downloading page content. |
+| Spider multi-page documentation sections | `atlas_crawl` | Multi-page | Recursive traversal with path globs (`includePaths`) and bounded polling. |
+| Compile a known list of 2–20 URLs in parallel | `atlas_batch_compile` | Parallel | Concurrent execution with isolated per-page error handling and budgets. |
+
+---
+
+## `atlas_scrape`
+
+Fast-path single-page extraction with low latency and optional link discovery.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The absolute HTTP or HTTPS URL to scrape. |
+| `formats` | `string[]` | No | `["markdown"]` | Desired output formats: `"markdown"`, `"links"`, or `"text"`. |
+| `max_output_chars` | `integer` | No | `30000` | Maximum character budget. If exceeded, content is cleanly sliced. |
+| `timeout_ms` | `integer` | No | `30000` | Execution timeout in milliseconds (max: 60000). |
+
+### Return Schema
+
+```typescript
+interface AtlasScrapeResult {
+  url: string;
+  title: string;
+  markdown?: string;
+  text?: string;
+  links?: Array;
+  stats: {
+    character_count: number;
+    word_count: number;
+    read_time_seconds: number;
+  };
+  truncated: boolean;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_scrape",
+  "arguments": {
+    "url": "https://example.com/blog/announcement",
+    "formats": ["markdown", "links"],
+    "max_output_chars": 20000
+  }
+}
+```
+
+---
+
+## `atlas_compile`
+
+High-fidelity deterministic visual compiler. Preserves complex layout geometries, multi-column tables, syntax-highlighted code fences, and semantic document outlines.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The absolute HTTP or HTTPS URL to compile. |
+| `format` | `string` | No | `"markdown"` | Output format: `"markdown"`, `"semantic"` (includes AST), or `"markdown+links"`. |
+| `max_output_chars` | `integer` | No | `30000` | Character budget (min: 1000, max: 200000). Content beyond budget is truncated with resource URIs. |
+| `force_fresh` | `boolean` | No | `false` | When `true`, bypasses edge cache and forces a fresh compilation. |
+
+### Return Schema
+
+```typescript
+interface AtlasCompileResult {
+  url: string;
+  compilation_id: string;
+  title: string;
+  markdown?: string;
+  ast?: Record;
+  headings?: Array;
+  resources: {
+    compiled_artifact_uri: string; // e.g. "atlas://compilations/comp_abc123"
+    ast_uri?: string;              // e.g. "atlas://compilations/comp_abc123/ast"
+  };
+  stats: {
+    character_count: number;
+    tokens_saved_pct?: number;     // Average: 65% token tax elimination
+    compilation_time_ms: number;
+  };
+  truncated: boolean;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_compile",
+  "arguments": {
+    "url": "https://stripe.com/pricing",
+    "format": "markdown",
+    "max_output_chars": 50000
+  }
+}
+```
+
+---
+
+## `atlas_map`
+
+Sitemap-first domain topology discovery. Traverses XML sitemaps and HTML anchor graphs to map available URLs without downloading full page bodies.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The root or entry URL of the domain to map. |
+| `limit` | `integer` | No | `100` | Maximum number of URLs to return (1 to 10,000). |
+| `include_subdomains` | `boolean` | No | `false` | When `true`, follows links across subdomains of the target. |
+| `sitemap` | `string` | No | `"include"` | Sitemap discovery policy: `"include"`, `"skip"`, or `"only"`. |
+
+### Return Schema
+
+```typescript
+interface AtlasMapResult {
+  root_url: string;
+  urls: string[];
+  count: number;
+  sitemaps_found: string[];
+  duration_ms: number;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_map",
+  "arguments": {
+    "url": "https://docs.github.com",
+    "limit": 50,
+    "sitemap": "include"
+  }
+}
+```
+
+---
+
+## `atlas_crawl`
+
+Recursive multi-page spidering with path filtering and depth control. Designed for documentation sets, knowledge bases, and multi-page technical guides.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Root starting URL for the crawl. |
+| `max_pages` | `integer` | No | `10` | Maximum number of pages to compile. |
+| `max_depth` | `integer` | No | `2` | Maximum link traversal depth from root (1 to 10). |
+| `include_paths` | `string[]` | No | `[]` | Glob patterns to restrict crawl boundaries (e.g., `["/docs/**"]`). |
+| `exclude_paths` | `string[]` | No | `[]` | Glob patterns to omit from the crawl (e.g., `["/blog/archive/**"]`). |
+
+### Return Schema
+
+```typescript
+interface AtlasCrawlResult {
+  crawl_id: string;
+  root_url: string;
+  pages_crawled: number;
+  pages_failed: number;
+  summary_markdown: string;
+  pages: Array;
+  duration_ms: number;
+}
+```
+
+### Bounded Polling Behavior
+
+`atlas_crawl` implements **opportunistic bounded polling** up to 3 seconds:
+- If the crawl completes within 3 seconds, all compiled page items are returned synchronously.
+- If the crawl is still running, Atlas performs a clean asynchronous handoff, returning the `crawl_id` and a resource URI (`atlas://crawls/{crawl_id}`) so your agent does not hang.
+
+---
+
+## `atlas_batch_compile`
+
+Parallel compilation of multiple URLs with per-page budget enforcement and isolated error resilience.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `urls` | `string[]` | **Yes** | — | Array of 1 to 20 absolute URLs to compile in parallel. |
+| `format` | `string` | No | `"markdown"` | Output format: `"markdown"`, `"semantic"`, or `"markdown+links"`. |
+| `max_output_chars_per_page` | `integer` | No | `15000` | Per-page character budget to prevent context window overflow. |
+
+### Return Schema
+
+```typescript
+interface AtlasBatchCompileResult {
+  total_requested: number;
+  successful: number;
+  failed: number;
+  results: Array;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_batch_compile",
+  "arguments": {
+    "urls": [
+      "https://docs.anthropic.com/en/docs/welcome",
+      "https://docs.anthropic.com/en/docs/models-overview",
+      "https://docs.anthropic.com/en/docs/prompt-engineering"
+    ],
+    "max_output_chars_per_page": 10000
+  }
+}
+```
+
+---
+
+## MCP Protocol & Wire Reference
+
+URL: https://docs.atlas-compiler.com/ai/protocol-reference
+
+Summary: Technical wire specification for connecting to the Atlas Model Context Protocol server over Streamable HTTP and stdio transports.
+
+Atlas implements the open **Model Context Protocol (MCP)** specification (`2026-07-28`), offering both local stdio execution and cloud-native **Streamable HTTP** ingress.
+
+This reference provides technical details for developers integrating custom agent frameworks, building MCP client libraries, or inspecting JSON-RPC 2.0 wire traffic.
+
+---
+
+## Ingress Endpoints & Transport Modes
+
+Atlas exposes two primary transports:
+
+| Mode | Endpoint | Transport Protocol | Authentication |
+| :--- | :--- | :--- | :--- |
+| **Streamable HTTP** | `POST https://api.atlas-compiler.com/mcp` | HTTP/1.1 or HTTP/2 POST with JSON-RPC 2.0 | `Authorization: Bearer ` |
+| **stdio Transport** | CLI process via `@atlascompiler/mcp` | Standard input / standard output | Local credentials or `ATLAS_API_KEY` |
+
+---
+
+## Streamable HTTP Transport
+
+The Streamable HTTP transport allows cloud-native AI agents and containerized microservices to communicate with Atlas without spawning local Node.js child processes.
+
+### Required HTTP Headers
+
+When issuing requests to `POST https://api.atlas-compiler.com/mcp`, include the following headers:
+
+| Header | Type | Description |
+| :--- | :--- | :--- |
+| `Authorization` | `string` | **Required**. `Bearer `. |
+| `Content-Type` | `string` | **Required**. Must be `application/json`. |
+| `Accept` | `string` | Recommended. `application/json, text/event-stream`. |
+| `Mcp-Method` | `string` | Optional routing hint matching the JSON-RPC method (e.g. `tools/call`, `tools/list`). |
+| `Mcp-Name` | `string` | Optional routing hint matching the target tool name (e.g. `atlas_compile`). |
+
+---
+
+## RFC 8414 OAuth 2.0 Protected Resource Metadata
+
+Atlas exposes OAuth 2.0 resource server discovery metadata compliant with RFC 8414:
+
+```http
+GET https://api.atlas-compiler.com/.well-known/oauth-protected-resource HTTP/1.1
+```
+
+### Response (200 OK)
+
+```json
+{
+  "resource": "https://api.atlas-compiler.com/mcp",
+  "authorization_servers": [
+    "https://clerk.atlas-compiler.com"
+  ],
+  "scopes_supported": [
+    "atlas:compile",
+    "atlas:map",
+    "atlas:crawl",
+    "atlas:read_results"
+  ]
+}
+```
+
+---
+
+## JSON-RPC 2.0 Protocol Lifecycle
+
+All MCP communications follow the JSON-RPC 2.0 specification.
+
+### 1. Initialization (`initialize`)
+
+The client negotiates protocol capabilities with Atlas during connection startup.
+
+#### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2026-07-28",
+    "capabilities": {
+      "roots": { "listChanged": true },
+      "sampling": {}
+    },
+    "clientInfo": {
+      "name": "my-custom-agent",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+#### Response (200 OK)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2026-07-28",
+    "capabilities": {
+      "tools": {},
+      "resources": {
+        "subscribe": false,
+        "listChanged": false
+      },
+      "prompts": {}
+    },
+    "serverInfo": {
+      "name": "atlas",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+---
+
+### 2. Discover Tools (`tools/list`)
+
+Returns all available Atlas compilation, scraping, mapping, and crawling tools along with their full Zod-generated JSON Schema definitions.
+
+#### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+---
+
+### 3. Execute Tool (`tools/call`)
+
+Executes a specific Atlas tool synchronously.
+
+#### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "atlas_compile",
+    "arguments": {
+      "url": "https://example.com",
+      "format": "markdown",
+      "max_output_chars": 25000
+    }
+  }
+}
+```
+
+#### Response (200 OK)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Example Domain\n\nThis domain is for use in documentation examples...\n\n---\n**Compilation ID:** `comp_018f2a1b9e00`\n**Resource URI:** `atlas://compilations/comp_018f2a1b9e00`"
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+---
+
+## Virtual Resource URI Schemes
+
+Atlas exposes virtual resource templates via the `atlas://` URI scheme. When a compilation or crawl result exceeds an agent's character budget, the truncated output provides resource URIs for lazy retrieval.
+
+| URI Template | Description |
+| :--- | :--- |
+| `atlas://compilations/{compilation_id}` | Full compiled Markdown document without truncation. |
+| `atlas://compilations/{compilation_id}/ast` | Structured AST content graph as a JSON object. |
+| `atlas://compilations/{compilation_id}/sections/{section_id}` | Individual section or heading block from the compiled document. |
+| `atlas://crawls/{crawl_id}` | Paginated compilation manifest and page list for a crawl job. |
+
+### Reading a Resource (`resources/read`)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "resources/read",
+  "params": {
+    "uri": "atlas://compilations/comp_018f2a1b9e00"
+  }
+}
+```
+
+---
+
+## Security & DNS Rebinding Defenses
+
+Atlas implements strict host and origin filtering to defend against DNS rebinding attacks:
+
+1. **Host Header Validation**: Requests to `POST /mcp` must present an allowed Host header (`api.atlas-compiler.com`). Unrecognized or remapped Host headers are rejected with `403 Forbidden`.
+2. **Origin Header Enforcement**: For browser-based MCP clients, only approved Atlas web domains and local developer origins (`localhost`, `127.0.0.1`) are permitted. Non-browser clients (which omit `Origin`) pass unimpeded.
+3. **Stateless Ingress**: Non-POST/OPTIONS requests (such as `GET /mcp`) are explicitly rejected with `405 Method Not Allowed`, ensuring client implementations do not assume stateful long-lived HTTP socket sessions.
+
+---
+
+## Agent Framework Integrations
+
+URL: https://docs.atlas-compiler.com/ai/agent-frameworks
+
+Summary: Build custom LLM agents and multi-agent systems using Atlas with LangChain, LlamaIndex, Vercel AI SDK, and CrewAI.
+
+While desktop AI IDEs connect to Atlas via local stdio or pre-configured MCP clients, autonomous cloud agents, RAG pipelines, and multi-agent swarms integrate using official SDKs or direct tool declarations.
+
+This guide provides tested recipes for integrating Atlas web compilation into popular AI frameworks.
+
+---
+
+## Vercel AI SDK (`ai`)
+
+Use the official `@atlascompiler/sdk` to define deterministic web extraction tools in Next.js or Node.js agent workflows:
+
+```typescript
+
+const atlas = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY!,
+});
+
+const atlasCompileTool = tool({
+  description: 'Compile a live web page or documentation into clean, token-efficient Markdown.',
+  parameters: z.object({
+    url: z.string().url().describe('The URL of the webpage to compile'),
+  }),
+  execute: async ({ url }) => {
+    const result = await atlas.compile({ url });
+    return {
+      title: result.metadata?.title,
+      markdown: result.data.markdown,
+    };
+  },
+});
+
+export async function runResearchAgent(prompt: string) {
+  const { text } = await generateText({
+    model: openai('gpt-4o'),
+    tools: {
+      compileWebPage: atlasCompileTool,
+    },
+    maxSteps: 3,
+    prompt,
+  });
+
+  return text;
+}
+```
+
+---
+
+## LangChain & LangGraph
+
+```python Python (LangChain)
+
+from langchain.tools import tool
+from langchain_openai import ChatOpenAI
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+@tool
+def compile_webpage(url: str) -> str:
+    """Compile a live web page or SPA into token-efficient Markdown."""
+    response = atlas.compile(url=url)
+    return response.data.markdown
+
+llm = ChatOpenAI(model="gpt-4o", temperature=0)
+tools = [compile_webpage]
+llm_with_tools = llm.bind_tools(tools)
+
+query = "What are the latest enterprise pricing options on https://example.com/pricing?"
+messages = [("human", query)]
+ai_msg = llm_with_tools.invoke(messages)
+```
+
+```typescript TypeScript (LangChain)
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const compileTool = tool(
+  async ({ url }) => {
+    const res = await atlas.compile({ url });
+    return res.data.markdown;
+  },
+  {
+    name: "compile_webpage",
+    description: "Compile a live URL into clean LLM-ready Markdown",
+    schema: z.object({
+      url: z.string().url(),
+    }),
+  }
+);
+
+const model = new ChatOpenAI({ model: "gpt-4o" }).bindTools([compileTool]);
+```
+
+---
+
+## LlamaIndex
+
+Build RAG pipelines that ingest live, deterministic Markdown directly into vector index documents without running headless browser containers:
+
+```python
+
+from llama_index.core import Document, VectorStoreIndex
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+def load_web_documents(urls: list[str]) -> list[Document]:
+    documents = []
+    for url in urls:
+        response = atlas.compile(url=url)
+        doc = Document(
+            text=response.data.markdown,
+            metadata={
+                "url": response.metadata.canonical_url or url,
+                "title": response.metadata.title,
+                "status_code": response.metadata.status_code,
+            },
+        )
+        documents.append(doc)
+    return documents
+
+# Ingest and query
+docs = load_web_documents(["https://docs.anthropic.com/en/docs/welcome"])
+index = VectorStoreIndex.from_documents(docs)
+query_engine = index.as_query_engine()
+answer = query_engine.query("What are the core capabilities described in these docs?")
+print(answer)
+```
+
+---
+
+## CrewAI
+
+Equip autonomous agent swarms with Atlas web intelligence tools:
+
+```python
+
+from crewai.tools import tool
+from crewai import Agent, Task, Crew
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+@tool("Compile Web Content")
+def compile_web_content(url: str) -> str:
+    """Useful to extract clean, visual Markdown from any public URL or SPA."""
+    res = atlas.compile(url=url)
+    return res.data.markdown
+
+researcher = Agent(
+    role="Senior Market Analyst",
+    goal="Extract and synthesize competitive feature matrices from competitor websites",
+    backstory="You are an expert researcher specialized in SaaS architecture and pricing strategies.",
+    tools=[compile_web_content],
+    verbose=True,
+)
+
+research_task = Task(
+    description="Compile https://stripe.com/pricing and summarize their interchange plus rates.",
+    expected_output="A structured table comparing standard and custom enterprise pricing.",
+    agent=researcher,
+)
+
+crew = Crew(agents=[researcher], tasks=[research_task])
+result = crew.kickoff()
+print(result)
+```
+
+---
+
+## Direct OpenAI Function Calling
+
+If you are using raw HTTP requests or the official OpenAI SDK without a higher-level framework:
+
+```python
+
+from openai import OpenAI
+from atlascompiler import AtlasClient
+
+openai_client = OpenAI()
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "compile_webpage",
+            "description": "Compile a live URL into clean Markdown",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "Target webpage URL"}
+                },
+                "required": ["url"],
+            },
+        },
+    }
+]
+
+response = openai_client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What is the headline at https://news.ycombinator.com?"}],
+    tools=tools,
+)
+
+tool_call = response.choices[0].message.tool_calls[0]
+if tool_call.function.name == "compile_webpage":
+    args = json.loads(tool_call.function.arguments)
+    compiled = atlas.compile(url=args["url"])
+    print("Compiled Web Content:\n", compiled.data.markdown[:500])
+```
+
+---
+
+## Product Changelog
+
+URL: https://docs.atlas-compiler.com/changelog/overview
+
+Summary: Release notes, platform updates, and feature announcements for the Atlas web compiler and developer platform.
+
+Track updates, new capabilities, and platform releases across the Atlas API, official SDKs, and Model Context Protocol integrations.
+
+---
+
+## Atlas v1.0.0 — Launch Release
+
+Welcome to the initial production release of **Atlas Compiler** (`v1.0.0`). Atlas delivers a deterministic visual Web-to-Markdown compiler built from the ground up for LLM reasoning and autonomous AI agents.
+
+### Core Compiler & Extraction Engine
+
+- **Visual Edge Compilation (`POST /v1/compile`)**:
+  - Deterministic conversion of dynamic SPAs, complex documentation layouts, and multi-column tables into clean, token-efficient GitHub Flavored Markdown (GFM).
+  - Eliminates 60% to 80% of unnecessary markup, headers, and tracking noise compared to raw HTML extractors.
+  - Optional Intermediate Representation (`ir`) format for structured AST graph traversal and semantic hierarchy inspection.
+- **Fast Single-Page Scraper (`POST /v1/scrape`)**:
+  - Low-latency extraction of Markdown, links, and page metadata for lightweight content retrieval.
+  - In-memory processing with audited **Zero Data Retention (ZDR)**—no target page bodies or user content are retained on disk.
+
+### Multi-Page Exploration & Discovery
+
+- **Domain Topology Mapping (`POST /v1/map`)**:
+  - Fast sitemap-first URL discovery and heuristic route prioritization (0–100 scoring) without downloading full page bodies.
+  - Estimates total page count, primary framework, language, and token budget across the target domain.
+- **Distributed Recursive Crawler (`POST /v1/crawls`)**:
+  - Asynchronous multi-page spidering with glob path filtering (`includePaths`, `excludePaths`), depth limits, and max page caps.
+  - Opportunistic bounded polling for instant responses on smaller crawl targets.
+- **Resilient Batch Processing (`POST /v1/batches`)**:
+  - Parallel compilation of up to 1,000 explicit URLs per job with partial failure isolation—individual upstream errors do not abort the job.
+
+### Model Context Protocol (MCP 2026-07-28)
+
+- **Official `@atlascompiler/mcp` Server**:
+  - Implements the open Model Context Protocol `2026-07-28` specification.
+  - Dual-transport architecture: local stdio process for Cursor, Windsurf, Claude Desktop, and VS Code; cloud-native Streamable HTTP at `POST https://api.atlas-compiler.com/mcp`.
+  - 5 agent-ready tools: `atlas_compile`, `atlas_scrape`, `atlas_map`, `atlas_crawl`, and `atlas_batch`.
+  - Context window protection via character budgets and virtual `atlas://` resource URIs (`compilation`, `section`, `ast`, `crawl`).
+  - RFC 8414 OAuth 2.0 Protected Resource discovery at `GET /.well-known/oauth-protected-resource`.
+
+### Developer Platform & SDKs
+
+- **Multi-Language Client Libraries**:
+  - **TypeScript / JavaScript**: `@atlascompiler/sdk` with full typing, response envelope convenience getters, and HMAC signature helpers.
+  - **Python**: `atlascompiler` on PyPI with synchronous and asynchronous clients, typed models, and keyword argument flexibility.
+  - **Go**: `go.atlas-compiler.com/sdk/pkg/atlas` with zero external dependencies outside standard library and context cancellation.
+- **Cryptographic Webhooks**:
+  - Real-time HMAC-SHA256 signed event delivery for asynchronous crawl and batch completion (`crawl.completed`, `batch.completed`, `crawl.failed`, `batch.failed`).
+- **Production Quotas & Problem Details**:
+  - Machine-readable RFC 9457 error details with granular `code`, `requestId`, and `retryable` indicators.
+  - Concurrency leasing and credit consumption management powered by D1 compare-and-swap invariants.
+
+---
+
+## API Stability & Deprecation Policy
+
+URL: https://docs.atlas-compiler.com/changelog/api-stability
+
+Summary: Atlas API versioning commitments, backwards compatibility guarantees, breaking change windows, and deprecation headers.
+
+Atlas is designed for mission-critical software pipelines. We adhere to strict API stability guarantees to ensure that updates and enhancements do not break running client applications or production workflows.
+
+---
+
+## Semantic Versioning Guarantees
+
+All public REST endpoints are namespaced by major version (`/v1`). 
+
+### Backward-Compatible Changes (Non-Breaking)
+
+The following changes may occur without notice and are considered non-breaking:
+- Adding new optional request parameters or headers.
+- Adding new properties to existing JSON response objects.
+- Introducing new API endpoints or HTTP methods.
+- Adding new error codes or expanding error descriptions.
+- Adding new enum values to non-constrained response fields.
+
+  **Client Parsing Guidance**: Clients should ignore unrecognized properties in response JSON payloads rather than failing deserialization.
+
+---
+
+### Breaking Changes & Major Versions
+
+Any change that would break compliant client implementations will only be introduced in a new major version (e.g. `/v2`):
+- Removing or renaming an existing endpoint.
+- Making an optional request parameter required.
+- Modifying the type or meaning of an existing request or response field.
+- Changing the cryptographic signature format of webhooks.
+
+---
+
+## Deprecation Process & Notice Period
+
+In the rare event that an endpoint or feature is marked for deprecation:
+
+1. **6-Month Minimum Notice**: Features slated for deprecation will remain functional in production for a minimum of **6 months** following formal deprecation announcement.
+2. **Deprecation Headers**: Deprecated endpoints will return standardized HTTP response headers:
+   - `Deprecation: @` (RFC 8594)
+   - `Sunset: ` indicating the scheduled termination date.
+   - `Link: ; rel="sunset"` linking to migration documentation.
+3. **Dashboard & Email Alerts**: Workspace owners will receive proactive notifications regarding any active API keys issuing calls to deprecated routes.
+
+---
+
+## Machine-Readable Contract Evolution
+
+The canonical definition of the Atlas public API is published as `atlas.openapi.json`. Every pull request and release in our automated CI/CD pipeline validates that existing schemas remain backward-compatible before deployment.
+
+---

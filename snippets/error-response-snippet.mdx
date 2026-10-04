@@ -1,0 +1,14 @@
+```json
+{
+  "type": "https://api.atlas-compiler.com/errors/rate-limited",
+  "title": "Rate Limit Exceeded",
+  "status": 429,
+  "detail": "Workspace rate limit of 60 requests per minute exceeded.",
+  "instance": "/v1/scrape",
+  "code": "RATE_LIMITED",
+  "retryable": true,
+  "retryAfter": 12
+}
+```
+
+Atlas formats all error responses according to the **RFC 9457 Problem Details** standard with `Content-Type: application/problem+json`. Each error includes a machine-readable `code`, HTTP `status`, human-readable `detail`, and a `retryable` boolean flag.

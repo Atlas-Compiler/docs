@@ -1,0 +1,226 @@
+---
+title: "Agent Framework Integrations"
+description: "Build custom LLM agents and multi-agent systems using Atlas with LangChain, LlamaIndex, Vercel AI SDK, and CrewAI."
+---
+
+While desktop AI IDEs connect to Atlas via local stdio or pre-configured MCP clients, autonomous cloud agents, RAG pipelines, and multi-agent swarms integrate using official SDKs or direct tool declarations.
+
+This guide provides tested recipes for integrating Atlas web compilation into popular AI frameworks.
+
+---
+
+## Vercel AI SDK (`ai`)
+
+Use the official `@atlascompiler/sdk` to define deterministic web extraction tools in Next.js or Node.js agent workflows:
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText, tool } from 'ai';
+import { z } from 'zod';
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY!,
+});
+
+const atlasCompileTool = tool({
+  description: 'Compile a live web page or documentation into clean, token-efficient Markdown.',
+  parameters: z.object({
+    url: z.string().url().describe('The URL of the webpage to compile'),
+  }),
+  execute: async ({ url }) => {
+    const result = await atlas.compile({ url });
+    return {
+      title: result.metadata?.title,
+      markdown: result.data.markdown,
+    };
+  },
+});
+
+export async function runResearchAgent(prompt: string) {
+  const { text } = await generateText({
+    model: openai('gpt-4o'),
+    tools: {
+      compileWebPage: atlasCompileTool,
+    },
+    maxSteps: 3,
+    prompt,
+  });
+
+  return text;
+}
+```
+
+---
+
+## LangChain & LangGraph
+
+<CodeGroup>
+```python Python (LangChain)
+import os
+from langchain.tools import tool
+from langchain_openai import ChatOpenAI
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+@tool
+def compile_webpage(url: str) -> str:
+    """Compile a live web page or SPA into token-efficient Markdown."""
+    response = atlas.compile(url=url)
+    return response.data.markdown
+
+llm = ChatOpenAI(model="gpt-4o", temperature=0)
+tools = [compile_webpage]
+llm_with_tools = llm.bind_tools(tools)
+
+query = "What are the latest enterprise pricing options on https://example.com/pricing?"
+messages = [("human", query)]
+ai_msg = llm_with_tools.invoke(messages)
+```
+
+```typescript TypeScript (LangChain)
+import { tool } from "@langchain/core/tools";
+import { ChatOpenAI } from "@langchain/openai";
+import { z } from "zod";
+import { AtlasClient } from "@atlascompiler/sdk";
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const compileTool = tool(
+  async ({ url }) => {
+    const res = await atlas.compile({ url });
+    return res.data.markdown;
+  },
+  {
+    name: "compile_webpage",
+    description: "Compile a live URL into clean LLM-ready Markdown",
+    schema: z.object({
+      url: z.string().url(),
+    }),
+  }
+);
+
+const model = new ChatOpenAI({ model: "gpt-4o" }).bindTools([compileTool]);
+```
+</CodeGroup>
+
+---
+
+## LlamaIndex
+
+Build RAG pipelines that ingest live, deterministic Markdown directly into vector index documents without running headless browser containers:
+
+```python
+import os
+from llama_index.core import Document, VectorStoreIndex
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+def load_web_documents(urls: list[str]) -> list[Document]:
+    documents = []
+    for url in urls:
+        response = atlas.compile(url=url)
+        doc = Document(
+            text=response.data.markdown,
+            metadata={
+                "url": response.metadata.canonical_url or url,
+                "title": response.metadata.title,
+                "status_code": response.metadata.status_code,
+            },
+        )
+        documents.append(doc)
+    return documents
+
+# Ingest and query
+docs = load_web_documents(["https://docs.anthropic.com/en/docs/welcome"])
+index = VectorStoreIndex.from_documents(docs)
+query_engine = index.as_query_engine()
+answer = query_engine.query("What are the core capabilities described in these docs?")
+print(answer)
+```
+
+---
+
+## CrewAI
+
+Equip autonomous agent swarms with Atlas web intelligence tools:
+
+```python
+import os
+from crewai.tools import tool
+from crewai import Agent, Task, Crew
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+@tool("Compile Web Content")
+def compile_web_content(url: str) -> str:
+    """Useful to extract clean, visual Markdown from any public URL or SPA."""
+    res = atlas.compile(url=url)
+    return res.data.markdown
+
+researcher = Agent(
+    role="Senior Market Analyst",
+    goal="Extract and synthesize competitive feature matrices from competitor websites",
+    backstory="You are an expert researcher specialized in SaaS architecture and pricing strategies.",
+    tools=[compile_web_content],
+    verbose=True,
+)
+
+research_task = Task(
+    description="Compile https://stripe.com/pricing and summarize their interchange plus rates.",
+    expected_output="A structured table comparing standard and custom enterprise pricing.",
+    agent=researcher,
+)
+
+crew = Crew(agents=[researcher], tasks=[research_task])
+result = crew.kickoff()
+print(result)
+```
+
+---
+
+## Direct OpenAI Function Calling
+
+If you are using raw HTTP requests or the official OpenAI SDK without a higher-level framework:
+
+```python
+import os
+import json
+from openai import OpenAI
+from atlascompiler import AtlasClient
+
+openai_client = OpenAI()
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "compile_webpage",
+            "description": "Compile a live URL into clean Markdown",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "Target webpage URL"}
+                },
+                "required": ["url"],
+            },
+        },
+    }
+]
+
+response = openai_client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What is the headline at https://news.ycombinator.com?"}],
+    tools=tools,
+)
+
+tool_call = response.choices[0].message.tool_calls[0]
+if tool_call.function.name == "compile_webpage":
+    args = json.loads(tool_call.function.arguments)
+    compiled = atlas.compile(url=args["url"])
+    print("Compiled Web Content:\n", compiled.data.markdown[:500])
+```

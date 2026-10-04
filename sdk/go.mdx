@@ -1,0 +1,232 @@
+---
+title: "Go SDK"
+description: "Official go.atlas-compiler.com/sdk package for high-concurrency Go microservices, scrapers, and agents."
+---
+
+The official Atlas Go SDK provides an idiomatic, context-aware, type-safe client with zero third-party dependencies outside the Go standard library.
+
+---
+
+## Installation
+
+```bash
+go get go.atlas-compiler.com/sdk
+```
+
+Requires **Go 1.22+**.
+
+---
+
+## Initialization
+
+Initialize the client with your Atlas API key:
+
+```go
+package main
+
+import (
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	// Initialize with API key (or reads ATLAS_API_KEY from environment)
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+}
+```
+
+---
+
+## Core Operations
+
+### 1. Scrape a URL
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	ctx := context.Background()
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	result, meta, err := client.Scrape(ctx, atlas.ScrapeUrlRequest{
+		Url: "https://news.ycombinator.com",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("HTTP Status: %d (Replayed: %t)\n", meta.StatusCode, meta.Replayed)
+	if result.Data.Markdown != nil {
+		fmt.Println(*result.Data.Markdown)
+	}
+}
+```
+
+---
+
+### 2. Compile Dynamic Web Pages & Tables
+
+```go
+result, _, err := client.Compile(ctx, atlas.CompileUrlRequest{
+	Url: "https://stripe.com/pricing",
+})
+if err != nil {
+	panic(err)
+}
+
+if result.Response200 != nil {
+	fmt.Println(result.Response200.Markdown)
+}
+```
+
+---
+
+### 3. Map Domain Topology
+
+```go
+limit := 50
+mapRes, _, err := client.Map(ctx, atlas.MapUrlRequest{
+	Url:   "https://docs.github.com",
+	Limit: &limit,
+})
+if err != nil {
+	panic(err)
+}
+
+fmt.Printf("Discovered %d URLs\n", len(mapRes.Links))
+for _, link := range mapRes.Links {
+	fmt.Println(" -", link.Url)
+}
+```
+
+---
+
+### 4. Asynchronous Crawls & Job Polling
+
+```go
+// 1. Create crawl job
+maxPages := 50
+crawl, _, err := client.CreateCrawl(ctx, atlas.CreateCrawlRequest{
+	Url:      "https://docs.stripe.com",
+	MaxPages: &maxPages,
+})
+if err != nil {
+	panic(err)
+}
+
+jobID := crawl.Id
+fmt.Printf("Crawl admitted: %s\n", jobID)
+
+// 2. Poll status
+for {
+	job, _, err := client.GetJob(ctx, jobID)
+	if err != nil {
+		panic(err)
+	}
+
+	if job.Status == "ready" || job.Status == "failed" {
+		break
+	}
+	time.Sleep(2 * time.Second)
+}
+
+// 3. Retrieve results
+results, _, err := client.ListJobResults(ctx, jobID, nil, nil)
+if err != nil {
+	panic(err)
+}
+
+for _, item := range results.Data {
+	if item.Url != nil {
+		fmt.Println(*item.Url, "-> completed")
+	}
+}
+```
+
+---
+
+## Error Handling
+
+API errors implement Go's standard `error` interface and unmarshal into `*atlas.Problem` containing RFC 9457 details:
+
+```go
+var problem *atlas.Problem
+if errors.As(err, &problem) {
+	fmt.Printf("HTTP Status: %d\n", problem.Status)
+	fmt.Printf("Code: %s\n", problem.Code)
+	fmt.Printf("Detail: %s\n", problem.Detail)
+	fmt.Printf("Request ID: %s\n", problem.RequestId)
+	fmt.Printf("Retryable: %t\n", problem.Retryable)
+}
+```
+
+---
+
+## Verifying webhook signatures
+
+The Go SDK provides `atlas.VerifyWebhook` and `atlas.VerifyWebhookSignature` to authenticate incoming Standard Webhooks requests from Atlas:
+
+```go
+package main
+
+import (
+	"io"
+	"log"
+	"net/http"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func handleWebhook(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Cannot read request body", http.StatusBadRequest)
+		return
+	}
+
+	secret := os.Getenv("ATLAS_WEBHOOK_SECRET")
+
+	// Verify Standard Webhooks signature against incoming headers
+	result, err := atlas.VerifyWebhook(body, r.Header, secret)
+	if err != nil || !result.Valid {
+		log.Printf("Webhook rejected: %s (err: %v)", result.Error, err)
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("Received verified event: %v", result.Event["type"])
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+### Advanced verification options
+
+For dual-secret rotation or custom clock drift tolerance, use `atlas.VerifyWebhookSignature`:
+
+```go
+tolerance := 5 * time.Minute
+result, err := atlas.VerifyWebhookSignature(atlas.WebhookVerifyOptions{
+	Payload:        body,
+	Headers:        r.Header,
+	Secret:         os.Getenv("ATLAS_WEBHOOK_SECRET"),
+	PreviousSecret: os.Getenv("ATLAS_OLD_WEBHOOK_SECRET"), // 24-hour secret rotation support
+	Tolerance:      &tolerance,
+})
+```
+
+### Return value
+
+Returns `(*atlas.WebhookVerifyResult, error)`:
+- `result.Valid`: `true` if valid, `false` otherwise.
+- `result.Error`: Error reason string if invalid (`"missing_headers"`, `"invalid_format"`, `"timestamp_out_of_range"`, `"signature_mismatch"`).
+- `result.Event`: Unmarshaled JSON event map (`map[string]any`) when valid.

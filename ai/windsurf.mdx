@@ -1,0 +1,109 @@
+---
+title: "Windsurf (Codeium) Setup & Cascade Workflows"
+description: "Configure Atlas MCP with Windsurf IDE to empower Cascade agents with deterministic web extraction and real-time documentation retrieval."
+---
+
+import McpInit from '/snippets/mcp-init-snippet.mdx';
+
+Windsurf, developed by Codeium, natively supports the Model Context Protocol (MCP) in its autonomous **Cascade** agent. By connecting Atlas to Windsurf, Cascade can independently browse the web, compile external documentation, extract API references, and verify third-party interfaces while refactoring your code.
+
+---
+
+## 1-Click Interactive Setup
+
+The official Atlas setup wizard configures Windsurf automatically:
+
+<McpInit />
+
+Run the command with the `--global` flag:
+
+```bash
+npx -y @atlascompiler/mcp init --global
+```
+
+The wizard detects Windsurf's configuration directory, adds the `atlas` MCP server configuration, and verifies connectivity.
+
+---
+
+## Manual Configuration
+
+To configure Windsurf manually, open or create the MCP configuration file:
+
+### Configuration File Path
+
+- **macOS & Linux:** `~/.codeium/windsurf/mcp_config.json`
+- **Windows:** `%USERPROFILE%\.codeium\windsurf\mcp_config.json`
+
+### Configuration Content
+
+Add the `atlas` server definition under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "npx",
+      "args": ["-y", "@atlascompiler/mcp"],
+      "env": {
+        "ATLAS_API_KEY": "atlas_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+After updating the file, reload Windsurf or open the **Windsurf Settings > MCP** panel to verify that the Atlas server status is active.
+
+---
+
+## Cascade Agent Workflows
+
+Cascade operates as an agentic pair-programmer capable of taking multi-step actions. Here are several workflows showcasing how Cascade leverages Atlas tools:
+
+### 1. Zero-Shot Library Implementation
+
+Instruct Cascade to reference current documentation when generating boilerplate:
+
+```text
+Cascade, create a client for the PostHog API using TypeScript. First use @atlas to compile https://posthog.com/docs/api/capture and ensure our event batching schema matches their official specifications.
+```
+
+**Workflow**:
+1. Cascade calls `atlas_compile` to fetch the PostHog API specifications.
+2. Atlas strips away navigation chrome, compiling the request schema and headers into GFM tables.
+3. Cascade inspects the clean Markdown and writes the exact TypeScript interface without schema drift.
+
+---
+
+### 2. Multi-Page Framework Migration
+
+When upgrading dependencies across breaking versions:
+
+```text
+We are migrating our routing layer to SvelteKit 2. Use @atlas to crawl https://svelte.dev/docs/kit with maxPages 10 and includePaths ["/docs/kit/load**"] to discover the exact breaking changes in server load functions.
+```
+
+**Workflow**:
+1. Cascade invokes `atlas_crawl` with path filtering.
+2. Atlas traverses the documentation section, compiling pages concurrently.
+3. Cascade receives structured summaries and autonomously updates your codebase files.
+
+---
+
+### 3. Rapid Site Topology Discovery
+
+```text
+Use @atlas to map https://huggingface.co/docs/transformers and list all available model architecture documentation guides.
+```
+
+---
+
+## Windsurf Best Practices
+
+<Tip>
+  **Keep Cascade Focused**: Provide specific target URLs to Cascade when prompting. While Cascade can navigate links using `atlas_map`, providing a direct documentation URL alongside `@atlas compile` ensures the fastest turnaround.
+</Tip>
+
+<Note>
+  **API Key Security**: For shared projects, configure `ATLAS_API_KEY` in your personal environment variables rather than hardcoding it in repository-committed files. Atlas MCP CLI automatically falls back to environment variables.
+</Note>

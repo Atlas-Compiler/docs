@@ -1,0 +1,157 @@
+---
+title: "Cursor Setup & Agent Workflows"
+description: "Connect Atlas MCP to Cursor IDE for real-time web compilation, API documentation research, and codebase synthesis."
+---
+
+import McpInit from '/snippets/mcp-init-snippet.mdx';
+
+Cursor supports the Model Context Protocol (MCP), enabling its Composer and Chat agents to directly call external tools during code generation and debugging. 
+
+By connecting Atlas to Cursor, your agent can compile live web pages, read documentation sites, extract accurate pricing tables, and inspect sitemaps without leaving your editor.
+
+---
+
+## 1-Click Interactive Setup
+
+The fastest way to configure Cursor is with the Atlas MCP setup wizard:
+
+<McpInit />
+
+To configure Cursor specifically:
+
+```bash
+# Global configuration (available in all Cursor workspaces)
+npx -y @atlascompiler/mcp init --global
+
+# Project-level configuration (committed to your repository)
+npx -y @atlascompiler/mcp init --project
+```
+
+The wizard validates your Atlas API key against `https://api.atlas-compiler.com/v1/health` and automatically merges the configuration into your Cursor settings file.
+
+---
+
+## Manual Configuration
+
+If you prefer manual configuration, add the Atlas server to your Cursor MCP settings.
+
+### File Locations
+
+- **Global Configuration:**  
+  - macOS & Linux: `~/.cursor/mcp.json`  
+  - Windows: `%USERPROFILE%\.cursor\mcp.json`
+- **Project Configuration:**  
+  - `.cursor/mcp.json` in your repository root.
+
+### Configuration Format
+
+Add the following block to your `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "npx",
+      "args": ["-y", "@atlascompiler/mcp"],
+      "env": {
+        "ATLAS_API_KEY": "atlas_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+<Note>
+  Cursor automatically restarts active MCP servers when you save changes to `mcp.json`. You can verify connection status in Cursor under **Settings > Features > MCP**.
+</Note>
+
+---
+
+## Installing the Atlas Agent Skill
+
+Cursor agents discover custom skills defined in your workspace or global configuration. Install the canonical Atlas Agent Skill to teach Cursor how to select the best Atlas tools automatically:
+
+```bash
+# Install to current project (.agents/skills/atlas/SKILL.md)
+npx -y @atlascompiler/mcp skill
+
+# Install globally (~/.agents/skills/atlas/SKILL.md)
+npx -y @atlascompiler/mcp skill --global
+```
+
+The skill provides Cursor with zero-shot decision playbooks for web extraction, preventing unnecessary browser automation and token waste.
+
+---
+
+## Agent Prompt Recipes & Workflows
+
+Once installed, Cursor Chat and Composer have access to all 5 Atlas tools (`atlas_scrape`, `atlas_compile`, `atlas_map`, `atlas_crawl`, `atlas_batch_compile`).
+
+### 1. Compile Live Documentation for Code Generation
+
+Instruct Cursor to fetch the latest SDK documentation before writing integration code:
+
+```text
+@atlas compile https://docs.stripe.com/api/payment_intents/create and implement a TypeScript function to create a recurring subscription with metadata.
+```
+
+**Why this works**: Instead of relying on training data that might be out of date, Cursor calls `atlas_compile`, receives clean GFM Markdown with exact parameter tables and types, and generates accurate, hallucination-free code.
+
+---
+
+### 2. Map Site Architecture & Discover Endpoints
+
+Before building a scraper or reverse-engineering a public service, map the target domain:
+
+```text
+@atlas map https://docs.github.com/en/rest and list all URL endpoints related to GitHub Actions webhooks.
+```
+
+**Why this works**: `atlas_map` inspects XML sitemaps and root HTML link topologies at edge speed, returning structured URL lists without downloading heavy page bodies.
+
+---
+
+### 3. Spider Multi-Page Documentation
+
+When refactoring or upgrading a library across multiple documentation pages:
+
+```text
+@atlas crawl https://nextjs.org/docs with maxPages 5 and includePaths ["/docs/app/building-your-application/routing/**"] to explain how parallel routes work.
+```
+
+**Why this works**: Cursor triggers `atlas_crawl`, which compiles the relevant subset of pages and passes structured summaries back to the LLM context.
+
+---
+
+### 4. Extract Tabular Data & Pricing Matrices
+
+```text
+@atlas compile https://openai.com/api/pricing/ and write a TypeScript type definition and rate card for all GPT-4o models.
+```
+
+**Why this works**: Atlas compiles complex dynamic tables into exact GFM pipe tables, preserving row and column relationships that raw HTML scrapers scramble.
+
+---
+
+## Cursor Best Practices
+
+<Tip>
+  **Context Window Management**: Atlas automatically truncates large documents at `max_output_chars` (default: 30,000 characters) and includes an `atlas://` resource URI. If you need a more concise response, instruct Cursor: `@atlas scrape https://example.com with max_output_chars 5000`.
+</Tip>
+
+<Warning>
+  **Environment Variables**: Never commit your Atlas API key in `.cursor/mcp.json` if your repository is public. Instead, set the `ATLAS_API_KEY` environment variable in your shell profile (`~/.zshrc` or `~/.bashrc`), and Atlas MCP CLI will automatically resolve it.
+</Warning>
+
+---
+
+## Verifying Setup
+
+1. Open Cursor and navigate to **Cursor Settings** (`Cmd+,` or `Ctrl+,`).
+2. Search for **MCP**.
+3. Confirm that `atlas` is listed with a green indicator showing **Connected**.
+4. Open Cursor Chat (`Cmd+L` or `Ctrl+L`) and type:
+   ```text
+   Use @atlas to scrape https://example.com and tell me its title.
+   ```
+5. Cursor will show a tool call to `atlas_scrape` and display the compiled result.

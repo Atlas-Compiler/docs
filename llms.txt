@@ -1,0 +1,65 @@
+# Atlas Compiler Documentation
+
+> Atlas is the deterministic visual Web-to-Markdown compiler for LLM and agent workflows. It compiles dynamic, JS-heavy web pages, multi-column pricing grids, and SPAs into token-efficient Markdown, structured AST graphs, and clean tabular data with Zero Data Retention (ZDR).
+
+## Core Endpoints & Documentation
+
+- [Atlas Documentation](https://docs.atlas-compiler.com/introduction): Web content, compiled for machines. Transform public web pages into pristine Markdown and structured data with sub-1.5s latency.
+- [Quickstart](https://docs.atlas-compiler.com/get-started/quickstart): Get up and running with Atlas and compile your first web page in under 30 seconds.
+- [Authentication & API Keys](https://docs.atlas-compiler.com/get-started/authentication): How to authenticate Atlas API requests, configure API key scopes, and handle workspace resolution.
+- [Why Atlas](https://docs.atlas-compiler.com/concepts/why-atlas): Why Atlas is engineered for ultra-low-latency edge processing, eliminating token bloat and headless browser overhead.
+- [The Compiler Pipeline](https://docs.atlas-compiler.com/concepts/compiler-pipeline): The 4-stage transformation lifecycle: Fetch, Structural Analysis, Content Extraction & Token Pruning, and Schema Structuring.
+- [Output Models](https://docs.atlas-compiler.com/concepts/output-models): Detailed specification for GitHub Flavored Markdown (GFM), structured metadata, and intermediate representations.
+- [Security & Zero Data Retention](https://docs.atlas-compiler.com/concepts/security-zdr): How Atlas guarantees ephemeral memory processing, strict SSRF protection, and Zero Data Retention (ZDR).
+- [Scrape a Page](https://docs.atlas-compiler.com/guides/scrape): How to synchronously compile single web pages into clean, token-efficient markdown using POST /v1/scrape.
+- [Deep Compile](https://docs.atlas-compiler.com/guides/compile): How to perform deep structural analysis, AST graph extraction, and asynchronous execution with POST /v1/compile.
+- [Map Domain Topology](https://docs.atlas-compiler.com/guides/map): Discover, analyze, and heuristically rank all reachable URLs across a website using POST /v1/map.
+- [Crawl Websites](https://docs.atlas-compiler.com/guides/crawl): How to orchestrate distributed multi-page website crawls with path filtering using POST /v1/crawls.
+- [Batch Extraction](https://docs.atlas-compiler.com/guides/batch): How to process bounded multi-URL compilation jobs concurrently with POST /v1/batch/scrape.
+- [Webhooks](https://docs.atlas-compiler.com/guides/webhooks): Configure webhooks, receive real-time crawl and batch event notifications, and verify Standard Webhooks signatures.
+- [Quotas & Rate Limits](https://docs.atlas-compiler.com/production/quotas): Tier-based concurrency allowances, per-minute request rate limits, and rate limit header specifications.
+- [Plans, Credits & Dodo Payments Billing](https://docs.atlas-compiler.com/production/billing): Understand the Atlas credit model, subscription tiers, global payments via Dodo Payments, and self-service billing management.
+- [Reliability, SLAs & Incident Management](https://docs.atlas-compiler.com/production/reliability): Architectural resilience, 99.95% uptime SLA, partial failure isolation, and operational health monitoring.
+- [Benchmark Methodology](https://docs.atlas-compiler.com/benchmarks/methodology): Scientific benchmarking harness, dataset composition, and measurement standards for evaluating web extraction engines.
+- [Atlas Arena Results](https://docs.atlas-compiler.com/benchmarks/atlas-arena-results): Empirical benchmark results evaluating Atlas against Headless Chromium, Readability.js, and legacy web scraping tools.
+- [REST API Overview](https://docs.atlas-compiler.com/api-reference/overview): Core conventions, authentication, base URLs, rate limits, and idempotency headers for the Atlas public REST API.
+- [RFC 9457 Error Dictionary](https://docs.atlas-compiler.com/api-reference/errors): Machine-readable Problem Details schema, comprehensive error code dictionary, and resilient programmatic handling recipes.
+- [Scrape URL](https://docs.atlas-compiler.com/api-reference/scrape): Synchronously compile a single web page into clean, structured Markdown, links, and metadata.
+- [Compile URL](https://docs.atlas-compiler.com/api-reference/compile): Compile a web page or complex SPA into deterministic visual Markdown, GFM tables, and structured AST content graphs.
+- [Map Domain](https://docs.atlas-compiler.com/api-reference/map): Discover URL topology, sitemaps, and linked navigation graphs for an entire domain without downloading page bodies.
+- [Create Crawl Job](https://docs.atlas-compiler.com/api-reference/crawl): Start a distributed, recursive crawl across an entire domain or documentation section.
+- [Create Batch Job](https://docs.atlas-compiler.com/api-reference/batch): Submit multi-URL batch compilation requests with parallel execution and isolated partial failure handling.
+- [Get Job Status](https://docs.atlas-compiler.com/api-reference/get-job): Retrieve execution status, lifecycle progression, item counters, and artifact readiness for any asynchronous job.
+- [Get Job Results](https://docs.atlas-compiler.com/api-reference/job-results): Retrieve paginated results and compiled page artifacts for an asynchronous crawl, compile, or batch job.
+- [Get Job Errors](https://docs.atlas-compiler.com/api-reference/job-errors): Retrieve URL-level failure diagnostics, upstream status codes, and error categories for an asynchronous job.
+- [Cancel Job](https://docs.atlas-compiler.com/api-reference/cancel-job): Cancel an in-flight asynchronous crawl, batch compilation, or long-running execution.
+- [SDK Overview](https://docs.atlas-compiler.com/sdk/overview): Official, type-safe client libraries for TypeScript/JavaScript, Python, and Go with automatic workspace resolution and retry resilience.
+- [TypeScript / JavaScript SDK](https://docs.atlas-compiler.com/sdk/javascript): Official @atlascompiler/sdk package for Node.js, Next.js, Bun, Deno, and edge runtimes.
+- [Python SDK](https://docs.atlas-compiler.com/sdk/python): Official atlascompiler package for Python applications, AI agents, and RAG data pipelines.
+- [Go SDK](https://docs.atlas-compiler.com/sdk/go): Official go.atlas-compiler.com/sdk package for high-concurrency Go microservices, scrapers, and agents.
+- [Model Context Protocol (MCP) Hub](https://docs.atlas-compiler.com/ai/mcp-overview): Equip AI coding assistants and autonomous agents with deterministic, token-efficient web compilation using the open Model Context Protocol.
+- [Cursor Setup & Agent Workflows](https://docs.atlas-compiler.com/ai/cursor): Connect Atlas MCP to Cursor IDE for real-time web compilation, API documentation research, and codebase synthesis.
+- [Claude Desktop Setup & Research Workflows](https://docs.atlas-compiler.com/ai/claude-desktop): Empower Claude Desktop with deterministic web compilation, research capabilities, and tabular data extraction using Atlas MCP.
+- [Windsurf (Codeium) Setup & Cascade Workflows](https://docs.atlas-compiler.com/ai/windsurf): Configure Atlas MCP with Windsurf IDE to empower Cascade agents with deterministic web extraction and real-time documentation retrieval.
+- [MCP Tools Reference](https://docs.atlas-compiler.com/ai/tools-reference): Comprehensive parameter schemas, return types, and usage examples for all 5 native Atlas Model Context Protocol tools.
+- [MCP Protocol & Wire Reference](https://docs.atlas-compiler.com/ai/protocol-reference): Technical wire specification for connecting to the Atlas Model Context Protocol server over Streamable HTTP and stdio transports.
+- [Agent Framework Integrations](https://docs.atlas-compiler.com/ai/agent-frameworks): Build custom LLM agents and multi-agent systems using Atlas with LangChain, LlamaIndex, Vercel AI SDK, and CrewAI.
+- [Product Changelog](https://docs.atlas-compiler.com/changelog/overview): Release notes, platform updates, and feature announcements for the Atlas web compiler and developer platform.
+- [API Stability & Deprecation Policy](https://docs.atlas-compiler.com/changelog/api-stability): Atlas API versioning commitments, backwards compatibility guarantees, breaking change windows, and deprecation headers.
+
+## Model Context Protocol (MCP)
+
+- MCP Server: `@atlascompiler/mcp` (npm)
+- Streamable HTTP: `https://api.atlas-compiler.com/mcp`
+- Specification: Model Context Protocol `2026-07-28`
+- Available Tools: `atlas_compile`, `atlas_scrape`, `atlas_map`, `atlas_crawl`, `atlas_batch`
+
+## Client Libraries
+
+- JavaScript / TypeScript: `@atlascompiler/sdk`
+- Python: `atlascompiler` (PyPI)
+- Go: `go.atlas-compiler.com/sdk/pkg/atlas`
+
+## Full Documentation Text
+
+- [Full Documentation Single File](https://docs.atlas-compiler.com/llms-full.txt): Complete aggregated text of all documentation pages for direct LLM context injection.

@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "Atlas Public Documentation Publication Manifest",
+  "version": "1.0",
+  "description": "Authoritative security allowlist of all files, patterns, and assets permitted for export to public docs repository.",
+  "files": [
+    ".mintignore",
+    "README.md",
+    "LICENSE",
+    "AGENTS.md",
+    "docs.json",
+    "style.css",
+    "public-docs-manifest.json",
+    "atlas.openapi.json",
+    "llms.txt",
+    "llms-full.txt",
+    "introduction.mdx",
+    "get-started/**",
+    "concepts/**",
+    "guides/**",
+    "api-reference/**",
+    "sdk/**",
+    "ai/**",
+    "production/**",
+    "benchmarks/**",
+    "changelog/**",
+    "snippets/**",
+    "assets/**",
+    "logo/**"
+  ],
+  "forbiddenExtensions": [
+    ".env",
+    ".pem",
+    ".key",
+    ".cert",
+    ".bak",
+    ".tmp",
+    ".log",
+    ".DS_Store"
+  ],
+  "forbiddenFiles": [
+    "internal-notes.md",
+    "draft-security.md",
+    "benchmark-data.json"
+  ],
+  "maxFileSizeMb": 10
+}

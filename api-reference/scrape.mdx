@@ -1,0 +1,102 @@
+---
+title: "Scrape URL"
+openapi: "POST /v1/scrape"
+description: "Synchronously compile a single web page into clean, structured Markdown, links, and metadata."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+Execute a synchronous scrape request against a target URL. Atlas fetches the web page, renders single-page applications, and compiles the DOM into clean Markdown and structured metadata in ~1.3 seconds.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+For safe retry behavior on unreliable networks, attach an `Idempotency-Key` header:
+
+<IdempotencyHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://news.ycombinator.com",
+    "formats": ["markdown", "links"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const result = await atlas.scrape({
+  url: 'https://news.ycombinator.com',
+  formats: ['markdown', 'links'],
+});
+
+console.log('Title:', result.metadata?.title);
+console.log('Markdown:\n', result.data.markdown);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = atlas.scrape(
+    url="https://news.ycombinator.com",
+    formats=["markdown", "links"],
+)
+
+print(f"Title: {result.metadata.title}")
+print(result.data.markdown)
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk"
+)
+
+func main() {
+	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+
+	result, err := client.Scrape(context.Background(), &atlas.ScrapeParams{
+		URL:     "https://news.ycombinator.com",
+		Formats: []string{"markdown", "links"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Title: %s\n", result.Metadata.Title)
+	fmt.Println(result.Data.Markdown)
+}
+```
+</CodeGroup>
+
+---
+
+## Response Structure
+
+A successful `200 OK` response contains:
+- `data.markdown`: LLM-ready clean Markdown.
+- `data.links`: Extracted outbound hyperlinks with anchored text.
+- `metadata`: Page title, canonical URL, HTTP status code, and extraction timestamp.
+- `usage.credits`: Number of credits deducted for the compilation (default: 1 credit).

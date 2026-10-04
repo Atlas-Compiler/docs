@@ -1,0 +1,111 @@
+---
+title: "Compile URL"
+openapi: "POST /v1/compile"
+description: "Compile a web page or complex SPA into deterministic visual Markdown, GFM tables, and structured AST content graphs."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+Execute a visual compilation against a target URL. The Atlas compiler analyzes DOM geometry, computes visual bounding boxes, strips ads and navigation noise, and emits clean GitHub Flavored Markdown (GFM) pipe tables and syntax-highlighted code blocks.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+For reliable deduplication on slow networks, provide an `Idempotency-Key` header:
+
+<IdempotencyHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/compile \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JEXAMPLECOMPILE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://stripe.com/pricing",
+    "cache": {
+      "forceFresh": false
+    }
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+const result = await atlas.compile({
+  url: 'https://stripe.com/pricing',
+  cache: { forceFresh: false },
+});
+
+console.log('Title:', result.metadata?.title);
+console.log('Tokens Saved:', `${result.stats?.tokensSavedPct}%`);
+console.log('Markdown:\n', result.data.markdown);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = atlas.compile(
+    url="https://stripe.com/pricing",
+    cache={"force_fresh": False},
+)
+
+print(f"Title: {result.metadata.title}")
+print(result.data.markdown)
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk"
+)
+
+func main() {
+	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+
+	result, err := client.Compile(context.Background(), &atlas.CompileParams{
+		URL: "https://stripe.com/pricing",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Title: %s\n", result.Metadata.Title)
+	fmt.Println(result.Data.Markdown)
+}
+```
+</CodeGroup>
+
+---
+
+## Asynchronous Execution
+
+For complex web pages requiring extended rendering, Atlas may return `202 Accepted` with an admitted job descriptor:
+
+```json
+{
+  "id": "job_01j7abc...",
+  "status": "queued",
+  "createdAt": "2026-09-19T12:00:00.000Z"
+}
+```
+
+When receiving `202 Accepted`, poll the status using [`GET /v1/jobs/{jobId}`](/api-reference/get-job) until `status` becomes `"ready"`.

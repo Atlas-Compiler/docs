@@ -1,0 +1,72 @@
+---
+title: "Why Atlas"
+description: "Why Atlas is engineered for ultra-low-latency edge processing, eliminating token bloat and headless browser overhead."
+---
+
+Extracting clean web data for Large Language Models has historically forced engineering teams to choose between two flawed paradigms: **heavy containerized browsers** or **brittle static scrapers**.
+
+Atlas introduces a third paradigm: **edge-native web compilation**.
+
+---
+
+## The Scraping Spectrum
+
+```text
+[ Brittle & Primitive ]                      [ Balanced & Optimized ]                      [ Heavy & Sluggish ]
+   Static Regex / Scrapers                         ATLAS COMPILER                           Headless Browsers
+----------------------------------------------------------------------------------------------------------------
+• Sub-second latency                         • Sub-1.5s P50 latency                        • 5–15s latency per page
+• Breaks on modern layouts                   • Resilient structural parsing                • 500MB+ RAM per browser tab
+• Ingests 100% boilerplate                   • Strips 70–90% token overhead                • High VM infrastructure bills
+• No schema or token awareness               • Native Markdown AST + JSON                  • Prone to crashed browser processes
+```
+
+### 1. Heavy Headless Browsers (Puppeteer, Playwright, Selenium)
+
+Traditional scrapers spin up full Chromium or WebKit browser engines in heavy Linux containers. 
+
+While capable of rendering complex JavaScript, this approach suffers from severe operational drawbacks:
+- **Massive Resource Overhead**: Each browser tab consumes between 300 MB and 1 GB of memory. Scaling to thousands of pages requires large, expensive Kubernetes clusters.
+- **Excessive Latency**: Waiting for full browser bootstrap, font rendering, CSS styling, and animation frames inflates per-page latency to 5–15 seconds.
+- **Non-Deterministic Extraction**: Visual browsers don't output clean semantic text; they output visual rectangles. Converting rendered layouts back into markdown often results in mangled tables, broken code snippets, and interleaved advertisements.
+
+### 2. Basic Static Scrapers (BeautifulSoup, Cheerio, Regex)
+
+On the other extreme, lightweight script scrapers fetch raw HTML strings and apply naive regex or CSS selectors.
+- **High Boilerplate**: Without semantic understanding of document hierarchy, raw navigation menus, footer disclosures, cookie consent banners, and sidebar links are dumped directly into the output.
+- **Context Pollution**: The resulting markdown remains bloated with thousands of irrelevant tokens, exhausting context windows and driving up model inference bills.
+
+---
+
+## The Atlas Architecture: Edge-Native Compilation
+
+Atlas operates as a **deterministic compilation layer deployed at the edge**, globally distributed within milliseconds of target web servers.
+
+Instead of running a full graphical display engine, Atlas processes web documents as structured document trees directly in lightweight edge runtime memory:
+
+1. **Near-Zero Cold Starts**: Requests execute instantly on serverless edge nodes without the 3–5 second boot delay of headless containers.
+2. **Sub-1.5s P50 Latency**: By analyzing document structure and pruning noise in streaming memory passes, Atlas compiles pages up to 10x faster than containerized browsers.
+3. **Deterministic Token Compression**: Boilerplate elements (headers, footers, ad slots, tracking beacons, navigation chrome) are structurally identified and eliminated, delivering a **39% to 45% token reduction** compared to competitor extractors.
+4. **Preserved Structural Integrity**: Substantive elements—such as markdown tables, multi-language code blocks, blockquotes, and nested lists—are preserved with exact AST fidelity.
+
+---
+
+## Architectural Comparison Matrix
+
+| Architectural Dimension | Heavy Headless Browsers | Basic HTML Scrapers | Atlas Edge Compiler |
+| :--- | :--- | :--- | :--- |
+| **P50 Latency** | 5,000 – 15,000 ms | 300 – 800 ms | **1,308 ms** |
+| **Memory Footprint** | 500 MB+ per page | ~15 MB | **< 30 MB (ephemeral)** |
+| **Token Reduction vs. HTML** | Variable (often noisy) | None (0%) | **70% – 90%** |
+| **Table & Code AST Fidelity** | Prone to visual corruption | Poor | **100% Deterministic** |
+| **Infrastructure Overhead** | High (dedicated VM fleets) | Low | **Zero (fully managed API)** |
+| **Data Retention (ZDR)** | Retained on disk | Depends on setup | **Zero Data Retention** |
+
+---
+
+## Dual-Audience Output
+
+Every compilation pass produces dual-purpose artifacts:
+
+- **For Human Readers**: Beautiful, clean GitHub Flavored Markdown that renders flawlessly in documentation viewers and chat interfaces.
+- **For AI Agents**: Rich document metadata (canonical URL, page title, publish date, language, confidence score) and structured content graphs optimized for semantic chunking and RAG ingestion.

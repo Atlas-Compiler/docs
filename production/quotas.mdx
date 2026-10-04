@@ -1,0 +1,115 @@
+---
+title: "Quotas & Rate Limits"
+description: "Tier-based concurrency allowances, per-minute request rate limits, and rate limit header specifications."
+---
+
+Atlas enforces tiered rate limits and concurrency quotas to ensure fair resource allocation, protect edge cluster stability, and safeguard target origin servers against accidental denial-of-service.
+
+---
+
+## Tier Allowances & Limits
+
+Every Atlas workspace operates within allowances determined by its active plan tier:
+
+| Plan Tier | Request Rate Limit | Max Concurrent Jobs | Included Monthly Credits | Max Crawl Pages | Max Batch URLs |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Free** | 30 requests / min | 1 concurrent job | 250 credits | 1,000 pages / crawl | 100 URLs |
+| **Starter** | 60 requests / min | 2 concurrent jobs | 5,000 credits | 5,000 pages / crawl | 500 URLs |
+| **Pro** | 120 requests / min | 5 concurrent jobs | 25,000 credits | 25,000 pages / crawl | 1,000 URLs |
+| **Team** | 240 requests / min | 12 concurrent jobs | 120,000 credits | 50,000 pages / crawl | 1,000 URLs |
+| **Scale** | 600 requests / min | 32 concurrent jobs | 480,000 credits | 100,000 pages / crawl | 1,000 URLs |
+| **Business** | 900 requests / min | 48 concurrent jobs | 1,000,000 credits | 200,000 pages / crawl | 1,000 URLs |
+| **Enterprise** | Custom (1,200+ rpm) | 64+ concurrent jobs | Custom pooled allocation | 250,000 pages / crawl | 1,000 URLs |
+
+---
+
+## Rate Limit Response Headers
+
+Every HTTP response from the Atlas API returns real-time quota tracking headers:
+
+```http
+HTTP/1.1 200 OK
+x-ratelimit-limit-requests: 60
+x-ratelimit-remaining-requests: 58
+x-ratelimit-reset-requests: 42
+```
+
+| Header | Description |
+| :--- | :--- |
+| `x-ratelimit-limit-requests` | The total number of requests permitted in the current 60-second rolling window. |
+| `x-ratelimit-remaining-requests` | The number of remaining requests allowed in the current window. |
+| `x-ratelimit-reset-requests` | The number of seconds remaining until the quota window resets. |
+
+---
+
+## Handling `429 Too Many Requests`
+
+When your workspace exceeds its rate limit or concurrent execution ceiling, Atlas returns an HTTP `429 Too Many Requests` error with an RFC 9457 Problem Details payload:
+
+```json
+{
+  "type": "https://api.atlas-compiler.com/problems/rate-limited",
+  "title": "Rate limit exceeded",
+  "status": 429,
+  "detail": "Workspace has exceeded its allowance of 60 requests per minute.",
+  "instance": "/v1/compile",
+  "requestId": "req_01j7abc123",
+  "code": "rate_limited",
+  "retryable": true,
+  "documentationUrl": "https://docs.atlas-compiler.com/errors/rate-limited"
+}
+```
+
+### Exponential Backoff Recipe
+
+All official Atlas SDKs implement automatic exponential backoff with full jitter when encountering retryable rate limits:
+
+<CodeGroup>
+```typescript TypeScript
+import { AtlasClient, AtlasError } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
+
+async function executeWithRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof AtlasError && err.retryable && attempt < maxRetries - 1) {
+        // Exponential backoff with jitter
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Exceeded max retries');
+}
+```
+
+```python Python
+import time
+import random
+from atlascompiler import AtlasClient, AtlasError
+
+atlas = AtlasClient()
+
+def execute_with_retry(fn, max_retries=4):
+    for attempt in range(max_retries):
+        try:
+            return fn()
+        except AtlasError as err:
+            if err.retryable and attempt < max_retries - 1:
+                delay = (2 ** attempt) * 1.0 + random.uniform(0, 0.5)
+                time.sleep(delay)
+                continue
+            raise
+```
+</CodeGroup>
+
+---
+
+## Requesting Quota Increases
+
+If your workload requires higher burst throughput or higher concurrent crawl slots, contact support or upgrade directly from the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under the **Billing** section. Enterprise customers can configure dedicated edge IPs and custom rate limits.

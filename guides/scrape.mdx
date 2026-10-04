@@ -1,0 +1,153 @@
+---
+title: "Scrape a Page"
+description: "How to synchronously compile single web pages into clean, token-efficient markdown using POST /v1/scrape."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+The `/v1/scrape` endpoint is the fastest way to extract web content with Atlas. It processes single web pages **synchronously** with sub-1.5s latency, returning clean GitHub Flavored Markdown and structured metadata directly in the HTTP response.
+
+<AuthHeader />
+
+---
+
+## When to Use `/v1/scrape`
+
+- **Interactive LLM Workflows**: When an end-user or AI assistant provides a link and needs an immediate answer.
+- **Low-Latency RAG Pipelines**: When compiling web articles, documentation pages, or blog posts in real time.
+- **Zero Data Retention (ZDR)**: For sensitive workloads where target page bodies must never be persisted to disk.
+
+---
+
+## Code Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/blog/post-1",
+    "formats": ["markdown"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.scrape({
+  url: 'https://example.com/blog/post-1',
+  formats: ['markdown'],
+});
+
+if (response.status === 200) {
+  const { data, metadata, usage } = response.value;
+  console.log('Title:', metadata.title);
+  console.log('Markdown:\n', data.markdown);
+  console.log('Credits Used:', usage.credits);
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.scrape({
+        "url": "https://example.com/blog/post-1",
+        "formats": ["markdown"],
+    })
+
+    if response.status == 200:
+        data = response.value["data"]
+        metadata = response.value["metadata"]
+        print("Title:", metadata["title"])
+        print("Markdown:\n", data["markdown"])
+        print("Credits:", response.value["usage"]["credits"])
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com/blog/post-1",
+	})
+	if err != nil {
+		log.Fatalf("Scrape error: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Title: %s\n", res.Response200.Metadata.Title)
+		fmt.Printf("Markdown:\n%s\n", res.Response200.Data.Markdown)
+		fmt.Printf("Credits: %d\n", res.Response200.Usage.Credits)
+	}
+}
+```
+
+</CodeGroup>
+
+---
+
+## Request Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The fully qualified public web URL (`http://` or `https://`) to compile. |
+| `formats` | `string[]` | No | `["markdown"]` | Desired output formats. Supported values: `"markdown"`, `"ir"`, `"metadata"`. |
+| `cache` | `object` | No | — | Optional caching behavior settings. |
+| `cache.mode` | `string` | No | `"default"` | Cache strategy: `"default"` (respect standard TTL), `"force-refresh"` (bypass cache), or `"only-if-cached"`. |
+| `cache.maxAgeSeconds` | `integer` | No | `3600` | Maximum acceptable cache age in seconds. |
+
+---
+
+## Response Structure
+
+A successful request returns `HTTP 200 OK` with JSON:
+
+```json
+{
+  "data": {
+    "markdown": "# Article Headline\n\nSubstantive article content with preserved [links](https://example.com) and formatting.",
+    "links": [
+      "https://example.com/about",
+      "https://example.com/pricing"
+    ]
+  },
+  "metadata": {
+    "title": "Article Headline",
+    "canonicalUrl": "https://example.com/blog/post-1",
+    "author": "Jane Doe",
+    "description": "Executive summary of the article.",
+    "publishedDate": "2026-06-15T08:00:00.000Z",
+    "extractionConfidence": 0.97,
+    "documentHash": "4a7d1ed414474e4033ac29ccb8653d9b",
+    "language": "en"
+  },
+  "usage": {
+    "credits": 1
+  }
+}
+```
+
+---
+
+## Handling Dynamic SPAs
+
+Atlas automatically resolves client-rendered Single-Page Applications (React, Vue, Next.js, Svelte). If a target page requires client-side hydration, Atlas waits for the primary DOM tree to stabilize before running the extraction pass, ensuring complete content extraction without requiring manual browser configuration.

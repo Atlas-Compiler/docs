@@ -1,0 +1,170 @@
+---
+title: "Map Domain Topology"
+description: "Discover, analyze, and heuristically rank all reachable URLs across a website using POST /v1/map."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+The `/v1/map` endpoint discovers and analyzes all reachable pages across an entire domain in seconds. Rather than blindly scraping every link, Atlas combines sitemap parsing, homepage hierarchy analysis, and semantic route classification to produce a prioritized topology map.
+
+<AuthHeader />
+
+---
+
+## When to Use `/v1/map`
+
+- **Sitemap & Architecture Discovery**: Understand the structure of a site before initiating a multi-page crawl.
+- **Route Prioritization**: Automatically identify high-value documentation, product, and API guides while demoting pagination noise.
+- **Context Budget Estimation**: Calculate estimated total tokens and compile time across an entire documentation site.
+
+---
+
+## Code Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/map \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "sitemap": "include",
+    "limit": 500
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.map({
+  url: 'https://example.com',
+  sitemap: 'include',
+  limit: 500,
+});
+
+if (response.status === 200) {
+  const { summary, links } = response.value;
+  console.log('Framework Detected:', summary.framework);
+  console.log('Estimated Pages:', summary.estimatedPages);
+  console.log('Estimated Tokens:', summary.estimatedTokens);
+  
+  // Filter for high-priority recommended routes
+  const recommendedLinks = links.filter((l) => l.recommended);
+  console.log(`Discovered ${recommendedLinks.length} recommended pages:`);
+  recommendedLinks.forEach((link) => console.log(`- [Priority ${link.priority}] ${link.url}`));
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.map({
+        "url": "https://example.com",
+        "sitemap": "include",
+        "limit": 500,
+    })
+
+    if response.status == 200:
+        summary = response.value["summary"]
+        links = response.value["links"]
+        print(f"Website Type: {summary['websiteType']} (Framework: {summary['framework']})")
+        print(f"Total Discovered Links: {len(links)}")
+        
+        for link in links[:5]:
+            print(f"- {link['url']} (Confidence: {link['confidence']})")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.Map(context.Background(), atlas.MapUrlRequest{
+		Url:     "https://example.com",
+		Sitemap: atlas.String("include"),
+		Limit:   atlas.Int(500),
+	})
+	if err != nil {
+		log.Fatalf("Map error: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Detected Framework: %s\n", *res.Response200.Summary.Framework)
+		fmt.Printf("Estimated Pages: %d\n", res.Response200.Summary.EstimatedPages)
+		fmt.Printf("Total Links Discovered: %d\n", len(res.Response200.Links))
+	}
+}
+```
+
+</CodeGroup>
+
+---
+
+## Request Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Target domain or base URL (e.g., `https://docs.example.com`). |
+| `sitemap` | `string` | No | `"include"` | Sitemap discovery policy: `"include"` (sitemap + HTML discovery), `"skip"` (HTML only), or `"only"` (sitemap only). |
+| `includeSubdomains` | `boolean` | No | `false` | When `true`, links to other subdomains of the target root will be mapped. |
+| `ignoreQueryParameters` | `boolean` | No | `false` | When `true`, URL query parameters (`?ref=...`) are stripped to prevent duplicate routes. |
+| `limit` | `integer` | No | `1000` | Maximum number of URLs to return (1 to 10,000). |
+| `exhaustive` | `boolean` | No | `false` | When `true`, performs an exhaustive discovery pass across all internal hierarchies. |
+
+---
+
+## Response Structure
+
+```json
+{
+  "summary": {
+    "framework": "nextjs",
+    "websiteType": "Documentation",
+    "language": "en-US",
+    "estimatedPages": 48,
+    "recommendedEntryPoint": "https://example.com/docs",
+    "recommendedDepth": 2,
+    "estimatedCompileTime": "12 seconds",
+    "estimatedTokens": "82K tokens",
+    "sitemapCoverage": 92.5,
+    "discoveryConfidence": 95.0
+  },
+  "links": [
+    {
+      "url": "https://example.com/docs/quickstart",
+      "title": "Quickstart Guide",
+      "description": "Get started in 5 minutes.",
+      "sources": ["sitemap", "navigation"],
+      "priority": 100,
+      "confidence": 98,
+      "depth": 1,
+      "recommended": true,
+      "incomingLinks": 8
+    }
+  ]
+}
+```
+
+### Route Prioritization Scoring
+
+Atlas assigns each link a `priority` score between `0` and `100`:
+- **90–100**: Core documentation, guide pages, and primary API references.
+- **70–89**: Secondary conceptual guides, changelogs, and category landing pages.
+- **Below 50**: Administrative disclosures, login screens, legal notices, and auxiliary pagination.

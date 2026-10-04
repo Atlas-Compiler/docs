@@ -1,0 +1,198 @@
+---
+title: "TypeScript / JavaScript SDK"
+description: "Official @atlascompiler/sdk package for Node.js, Next.js, Bun, Deno, and edge runtimes."
+---
+
+The official `@atlascompiler/sdk` provides a lightweight, fully typed interface for interacting with the Atlas REST API. It uses the web standard `fetch` API, contains zero runtime dependencies, and works across Node.js 18+, Bun, Deno, and edge environments.
+
+---
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @atlascompiler/sdk
+```
+
+```bash pnpm
+pnpm add @atlascompiler/sdk
+```
+
+```bash yarn
+yarn add @atlascompiler/sdk
+```
+
+```bash bun
+bun add @atlascompiler/sdk
+```
+</CodeGroup>
+
+---
+
+## Initialization
+
+Initialize the `AtlasClient`. If no API key is passed in options, the client automatically reads from the `ATLAS_API_KEY` environment variable:
+
+```typescript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY, // Optional if set in environment
+  timeout: 30000,                    // Request timeout in milliseconds (default: 30s)
+});
+```
+
+---
+
+## Core Operations
+
+### 1. Scrape a URL
+
+Synchronously extract clean Markdown and links from a single page:
+
+```typescript
+const result = await atlas.scrape({
+  url: 'https://news.ycombinator.com',
+  formats: ['markdown', 'links'],
+});
+
+console.log(result.value.metadata.title);
+console.log(result.value.data.markdown);
+```
+
+---
+
+### 2. Compile a Dynamic Page or SPA
+
+Execute visual DOM compilation preserving multi-column tables and code fences:
+
+```typescript
+const result = await atlas.compile({
+  url: 'https://stripe.com/pricing',
+  cache: { forceFresh: false },
+});
+
+if (result.status === 200) {
+  console.log('Markdown:\n', result.value.markdown);
+  console.log('Credits Used:', result.value.usage.credits);
+}
+```
+
+---
+
+### 3. Map Domain Topology
+
+Map sitemaps and site architecture without downloading page bodies:
+
+```typescript
+const mapResult = await atlas.map({
+  url: 'https://docs.github.com',
+  limit: 100,
+  sitemap: 'include',
+});
+
+if (mapResult.status === 200) {
+  console.log(`Discovered ${mapResult.value.links.length} URLs:`);
+  mapResult.value.links.forEach((link) => console.log(' -', link.url));
+}
+```
+
+---
+
+### 4. Create and Monitor a Crawl Job
+
+Start an asynchronous multi-page crawl with path filtering:
+
+```typescript
+// 1. Create crawl job
+const res = await atlas.createCrawl({
+  url: 'https://docs.stripe.com',
+  maxPages: 50,
+  maxDepth: 3,
+  includePaths: ['/docs/**'],
+  excludePaths: ['/docs/legacy/**'],
+});
+
+const jobId = res.value.id;
+console.log('Crawl admitted:', jobId);
+
+// 2. Poll for completion using built-in helper
+const job = await atlas.waitForJob(jobId);
+
+// 3. Fetch compiled pages
+if (job.status === 'ready') {
+  const pages = await atlas.listJobResults(jobId, { limit: 50 });
+  for (const item of pages.value.data) {
+    console.log(item.url, '->', item.markdown?.slice(0, 100));
+  }
+}
+```
+
+---
+
+## Error Handling
+
+All API errors throw typed `AtlasError` instances compliant with RFC 9457:
+
+```typescript
+import { AtlasClient, AtlasError } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient();
+
+try {
+  await atlas.compile({ url: 'https://invalid-domain.example' });
+} catch (err) {
+  if (err instanceof AtlasError) {
+    console.error(`Status: ${err.status}`);
+    console.error(`Error Code: ${err.code}`);
+    console.error(`Detail: ${err.message}`);
+    console.error(`Request ID: ${err.requestId}`);
+    console.error(`Retryable: ${err.retryable}`);
+  }
+}
+```
+
+---
+
+## Verifying webhook signatures
+
+The SDK exports `verifyWebhookSignature` to authenticate incoming Standard Webhooks requests from Atlas using HMAC-SHA256:
+
+```typescript
+import { verifyWebhookSignature } from '@atlascompiler/sdk';
+
+// In an Express, Next.js API route, or Hono handler:
+const result = await verifyWebhookSignature({
+  payload: req.rawBody, // raw body string or Uint8Array
+  headers: req.headers, // Node.js req.headers or Web Standard Headers
+  secret: process.env.ATLAS_WEBHOOK_SECRET!,
+  previousSecret: process.env.ATLAS_OLD_WEBHOOK_SECRET, // Optional 24h rotation support
+  toleranceSeconds: 300,                               // 5-minute replay window (default: 300)
+});
+
+if (!result.valid) {
+  console.error('Webhook verification rejected:', result.error);
+  return res.status(401).send('Unauthorized');
+}
+
+const event = result.event;
+console.log(`Verified ${event.type} for job ${event.data.jobId}`);
+return res.status(200).send('OK');
+```
+
+### Verification parameters
+
+| Option | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `payload` | `string \| Uint8Array` | **Yes** | The unparsed raw HTTP request body string or buffer. |
+| `headers` | `Record<string, string> \| Headers` | **Yes** | Incoming request headers containing `webhook-id`, `webhook-timestamp`, and `webhook-signature`. |
+| `secret` | `string \| string[]` | **Yes** | Your workspace default webhook secret or endpoint secret (`whsec_...`). Also accepts an array of secrets. |
+| `previousSecret` | `string` | No | Your previous secret during the 24-hour secret rotation grace period. |
+| `toleranceSeconds` | `number` | No | Maximum allowable clock drift in seconds (default: `300`). Pass negative value to disable. |
+
+### Return value
+
+Returns a promise resolving to `WebhookVerifyResult<T>`:
+- `valid`: `true` if signature and timestamp are authentic, `false` otherwise.
+- `error`: Error code if invalid (`'missing_headers'`, `'invalid_format'`, `'timestamp_out_of_range'`, `'signature_mismatch'`).
+- `event`: Parsed JSON event object if `valid === true`.

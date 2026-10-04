@@ -1,0 +1,48 @@
+---
+title: "Benchmark Methodology"
+description: "Scientific benchmarking harness, dataset composition, and measurement standards for evaluating web extraction engines."
+---
+
+To provide objective, reproducible comparisons between Atlas and alternative web extraction tools, we evaluated execution performance, token efficiency, table fidelity, and memory overhead across a diverse corpus of **1,000 production websites**.
+
+---
+
+## Dataset Composition (Atlas-1000)
+
+The **Atlas-1000 Corpus** consists of real-world URLs selected across 5 distinct web architecture categories:
+
+| Category | Count | Characteristics | Examples |
+| :--- | :--- | :--- | :--- |
+| **Complex SPAs & Web Apps** | 250 | Heavy client-side hydration, client-side routing, skeleton screens, dynamic shadow DOM. | Linear, Twitter/X, Vercel, Supabase |
+| **Technical Documentation** | 250 | Multi-level navigation trees, code fences with syntax highlighting, tabs, callout boxes. | Stripe, Next.js, GitHub Docs, AWS |
+| **Financial & Pricing Tables** | 200 | Multi-column comparison matrices, sticky headers, tooltips, currency toggles. | OpenAI, AWS Pricing, Shopify, Datadog |
+| **News, Publications & Media** | 150 | Heavy advertising banners, cookie consent dialogs, related article sidebars, dynamic video players. | NYTimes, The Verge, Bloomberg, TechCrunch |
+| **E-Commerce & Catalogs** | 150 | Faceted search, pagination, product variant grids, customer review carousels. | Amazon, Shopify stores, Target |
+
+---
+
+## Evaluation Metrics
+
+### 1. Latency & Time-to-First-Chunk (TTFC)
+We measure total roundtrip wall-clock time from the client's initial request until the full compiled Markdown or AST payload is received. We record **P50 (Median)**, **P90**, and **P99** latencies across 10 consecutive cold-start and warm-cache runs.
+
+### 2. Token Tax Reduction
+For every web page, we compute the token count using OpenAI's `o200k_base` (GPT-4o) and `cl100k_base` (GPT-4) tokenizers:
+$$\text{Token Tax Reduction \%} = \frac{\text{Raw HTML Tokens} - \text{Atlas Markdown Tokens}}{\text{Raw HTML Tokens}} \times 100$$
+
+### 3. Table Structural Fidelity (TSF Score)
+Table fidelity measures whether tabular data in the DOM is accurately reconstructed in GitHub Flavored Markdown (GFM) pipe tables without scrambled columns or collapsed multi-line cells. Graded from 0% (total failure/missing) to 100% (perfect row/column alignment).
+
+### 4. Server Resource Footprint (RAM & CPU)
+We profile resident set size (RSS) memory consumption and CPU cycle duration required to compile each page under identical 100-request concurrent loads.
+
+---
+
+## Testing Environment & Reproducibility
+
+- **Hardware**: Dedicated AMD EPYC 7763 64-Core Processor (2.45 GHz), 256 GB RAM, 10 Gbps symmetric network uplink.
+- **Client Runner**: Node.js v22 test runner executing parallel requests with 10-second request timeouts and randomized target order.
+- **Comparison Baselines**:
+  - **Headless Chromium (Puppeteer/Playwright)**: Full browser automation with network idle wait conditions.
+  - **Naive DOM Parsers (Readability.js + Turndown)**: Standard open-source heuristic readability algorithms.
+  - **Atlas Web Compiler**: Native edge pipeline with visual tree analysis.

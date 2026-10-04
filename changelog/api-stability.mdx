@@ -1,0 +1,54 @@
+---
+title: "API Stability & Deprecation Policy"
+description: "Atlas API versioning commitments, backwards compatibility guarantees, breaking change windows, and deprecation headers."
+---
+
+Atlas is designed for mission-critical software pipelines. We adhere to strict API stability guarantees to ensure that updates and enhancements do not break running client applications or production workflows.
+
+---
+
+## Semantic Versioning Guarantees
+
+All public REST endpoints are namespaced by major version (`/v1`). 
+
+### Backward-Compatible Changes (Non-Breaking)
+
+The following changes may occur without notice and are considered non-breaking:
+- Adding new optional request parameters or headers.
+- Adding new properties to existing JSON response objects.
+- Introducing new API endpoints or HTTP methods.
+- Adding new error codes or expanding error descriptions.
+- Adding new enum values to non-constrained response fields.
+
+<Tip>
+  **Client Parsing Guidance**: Clients should ignore unrecognized properties in response JSON payloads rather than failing deserialization.
+</Tip>
+
+---
+
+### Breaking Changes & Major Versions
+
+Any change that would break compliant client implementations will only be introduced in a new major version (e.g. `/v2`):
+- Removing or renaming an existing endpoint.
+- Making an optional request parameter required.
+- Modifying the type or meaning of an existing request or response field.
+- Changing the cryptographic signature format of webhooks.
+
+---
+
+## Deprecation Process & Notice Period
+
+In the rare event that an endpoint or feature is marked for deprecation:
+
+1. **6-Month Minimum Notice**: Features slated for deprecation will remain functional in production for a minimum of **6 months** following formal deprecation announcement.
+2. **Deprecation Headers**: Deprecated endpoints will return standardized HTTP response headers:
+   - `Deprecation: @<timestamp>` (RFC 8594)
+   - `Sunset: <date>` indicating the scheduled termination date.
+   - `Link: <url>; rel="sunset"` linking to migration documentation.
+3. **Dashboard & Email Alerts**: Workspace owners will receive proactive notifications regarding any active API keys issuing calls to deprecated routes.
+
+---
+
+## Machine-Readable Contract Evolution
+
+The canonical definition of the Atlas public API is published as `atlas.openapi.json`. Every pull request and release in our automated CI/CD pipeline validates that existing schemas remain backward-compatible before deployment.

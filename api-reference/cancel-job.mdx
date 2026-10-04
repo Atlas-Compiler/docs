@@ -1,0 +1,96 @@
+---
+title: "Cancel Job"
+openapi: "DELETE /v1/jobs/{jobId}"
+description: "Cancel an in-flight asynchronous crawl, batch compilation, or long-running execution."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+Immediately requests cancellation of an active asynchronous job. When cancelled, Atlas terminates in-flight execution on edge nodes, prevents remaining queued items from running, and marks the job status as `"cancelled"`.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+Cancellation requires an `Idempotency-Key` header:
+
+<IdempotencyHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://api.atlas-compiler.com/v1/jobs/job_01j7abc123 \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Idempotency-Key: 01JCANCEL001"
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const result = await atlas.cancelJob('job_01j7abc123');
+
+console.log('Cancellation Accepted:', result.value.accepted);
+console.log('Job Status:', result.value.job.status);
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+result = client.cancel_job("job_01j7abc123")
+
+print(f"Cancellation Accepted: {result.value['accepted']}")
+print(f"Job Status: {result.value['job']['status']}")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	result, _, err := client.CancelJob(context.Background(), "job_01j7abc123")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Cancellation Accepted: %t\n", result.Accepted)
+	fmt.Printf("Job Status: %s\n", result.Job.Status)
+}
+```
+</CodeGroup>
+
+---
+
+## Response
+
+Returns `202 Accepted` indicating that the cancellation signal has been received and dispatched across cluster nodes:
+
+```json
+{
+  "accepted": true,
+  "job": {
+    "id": "job_01j7abc123",
+    "status": "cancelled",
+    "cancellationRequestedAt": "2026-09-19T12:05:00.000Z"
+  }
+}
+```

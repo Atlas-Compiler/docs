@@ -1,0 +1,182 @@
+---
+title: "Quickstart"
+description: "Get up and running with Atlas and compile your first web page in under 30 seconds."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+This guide walks you through compiling your first public web page into clean, structured markdown. Our goal is a **30-second time-to-first-compile**.
+
+---
+
+<Steps>
+
+<Step title="Get your API key">
+Sign in to the [Atlas Dashboard](https://dashboard.atlas-compiler.com) and generate an API key from the **API Keys** section. 
+
+Keys use the standard unified `atlas_` prefix followed by 43 base64url characters:
+
+```bash
+export ATLAS_API_KEY="atlas_your_api_key_here"
+```
+
+<Note>
+  Keep your API key secure. Never commit keys to source control or embed them in client-side applications.
+</Note>
+</Step>
+
+<Step title="Choose your tool">
+You can invoke the Atlas API directly via `cURL` or install our official client libraries for TypeScript, Python, or Go:
+
+<Tabs>
+  <Tab title="cURL">
+    No installation required. You can make HTTP requests directly from your terminal.
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    npm install @atlascompiler/sdk
+    # or pnpm add @atlascompiler/sdk
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```bash
+    pip install atlascompiler
+    ```
+  </Tab>
+  <Tab title="Go">
+    ```bash
+    go get go.atlas-compiler.com/sdk/pkg/atlas
+    ```
+  </Tab>
+</Tabs>
+</Step>
+
+<Step title="Compile your first page">
+Execute a synchronous compile request against any public web page:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/scrape \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.scrape({
+  url: 'https://example.com',
+});
+
+if (response.status === 200) {
+  console.log('Title:', response.value.metadata.title);
+  console.log('Markdown:\n', response.value.data.markdown);
+  console.log('Credits Used:', response.value.usage.credits);
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.scrape({"url": "https://example.com"})
+    
+    if response.status == 200:
+        print("Title:", response.value["metadata"]["title"])
+        print("Markdown:\n", response.value["data"]["markdown"])
+        print("Credits Used:", response.value["usage"]["credits"])
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	
+	res, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com",
+	})
+	if err != nil {
+		log.Fatalf("Scrape failed: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Println("Title:", res.Response200.Metadata.Title)
+		fmt.Println("Markdown:\n", res.Response200.Data.Markdown)
+		fmt.Println("Credits Used:", res.Response200.Usage.Credits)
+	}
+}
+```
+
+</CodeGroup>
+</Step>
+
+<Step title="Inspect the response">
+Atlas returns clean GitHub Flavored Markdown alongside extracted document metadata and credit usage:
+
+```json
+{
+  "data": {
+    "markdown": "# Example Domain\n\nThis domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.\n\n[More information...](https://www.iana.org/domains/example)",
+    "links": [
+      "https://www.iana.org/domains/example"
+    ]
+  },
+  "metadata": {
+    "title": "Example Domain",
+    "canonicalUrl": "https://example.com/",
+    "author": null,
+    "description": "Illustrative example domain managed by IANA.",
+    "publishedDate": null,
+    "extractionConfidence": 0.98,
+    "language": "en"
+  },
+  "usage": {
+    "credits": 1
+  }
+}
+```
+
+### Response Field Breakdown
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `data.markdown` | `string` | Pristine GitHub Flavored Markdown with boilerplate scripts and navigation stripped. |
+| `data.links` | `string[]` | Array of absolute outbound URLs discovered within the document body. |
+| `metadata.title` | `string` | Extracted page title resolved from OpenGraph, meta tags, and document headings. |
+| `metadata.canonicalUrl` | `string` | Resolved canonical URL following any HTTP redirects. |
+| `metadata.extractionConfidence` | `number` | Quality confidence score between `0.0` and `1.0`. |
+| `usage.credits` | `integer` | Total credits billed for this compilation (1 credit per standard page). |
+
+</Step>
+
+</Steps>
+
+---
+
+## What to Explore Next
+
+<CardGroup cols={2}>
+  <Card title="Authentication & Keys" icon="key" href="/get-started/authentication">
+    Understand key scopes, workspace resolution, and rate limit tiers.
+  </Card>
+  <Card title="Task Guides" icon="compass" href="/guides/scrape">
+    Learn how to crawl entire websites, discover sitemaps, and execute batch scrapes.
+  </Card>
+</CardGroup>

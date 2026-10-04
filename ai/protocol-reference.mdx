@@ -1,0 +1,214 @@
+---
+title: "MCP Protocol & Wire Reference"
+description: "Technical wire specification for connecting to the Atlas Model Context Protocol server over Streamable HTTP and stdio transports."
+---
+
+Atlas implements the open **Model Context Protocol (MCP)** specification (`2026-07-28`), offering both local stdio execution and cloud-native **Streamable HTTP** ingress.
+
+This reference provides technical details for developers integrating custom agent frameworks, building MCP client libraries, or inspecting JSON-RPC 2.0 wire traffic.
+
+---
+
+## Ingress Endpoints & Transport Modes
+
+Atlas exposes two primary transports:
+
+| Mode | Endpoint | Transport Protocol | Authentication |
+| :--- | :--- | :--- | :--- |
+| **Streamable HTTP** | `POST https://api.atlas-compiler.com/mcp` | HTTP/1.1 or HTTP/2 POST with JSON-RPC 2.0 | `Authorization: Bearer <API_KEY>` |
+| **stdio Transport** | CLI process via `@atlascompiler/mcp` | Standard input / standard output | Local credentials or `ATLAS_API_KEY` |
+
+---
+
+## Streamable HTTP Transport
+
+The Streamable HTTP transport allows cloud-native AI agents and containerized microservices to communicate with Atlas without spawning local Node.js child processes.
+
+### Required HTTP Headers
+
+When issuing requests to `POST https://api.atlas-compiler.com/mcp`, include the following headers:
+
+| Header | Type | Description |
+| :--- | :--- | :--- |
+| `Authorization` | `string` | **Required**. `Bearer <ATLAS_API_KEY>`. |
+| `Content-Type` | `string` | **Required**. Must be `application/json`. |
+| `Accept` | `string` | Recommended. `application/json, text/event-stream`. |
+| `Mcp-Method` | `string` | Optional routing hint matching the JSON-RPC method (e.g. `tools/call`, `tools/list`). |
+| `Mcp-Name` | `string` | Optional routing hint matching the target tool name (e.g. `atlas_compile`). |
+
+---
+
+## RFC 8414 OAuth 2.0 Protected Resource Metadata
+
+Atlas exposes OAuth 2.0 resource server discovery metadata compliant with RFC 8414:
+
+```http
+GET https://api.atlas-compiler.com/.well-known/oauth-protected-resource HTTP/1.1
+```
+
+### Response (200 OK)
+
+```json
+{
+  "resource": "https://api.atlas-compiler.com/mcp",
+  "authorization_servers": [
+    "https://clerk.atlas-compiler.com"
+  ],
+  "scopes_supported": [
+    "atlas:compile",
+    "atlas:map",
+    "atlas:crawl",
+    "atlas:read_results"
+  ]
+}
+```
+
+---
+
+## JSON-RPC 2.0 Protocol Lifecycle
+
+All MCP communications follow the JSON-RPC 2.0 specification.
+
+### 1. Initialization (`initialize`)
+
+The client negotiates protocol capabilities with Atlas during connection startup.
+
+#### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2026-07-28",
+    "capabilities": {
+      "roots": { "listChanged": true },
+      "sampling": {}
+    },
+    "clientInfo": {
+      "name": "my-custom-agent",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+#### Response (200 OK)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2026-07-28",
+    "capabilities": {
+      "tools": {},
+      "resources": {
+        "subscribe": false,
+        "listChanged": false
+      },
+      "prompts": {}
+    },
+    "serverInfo": {
+      "name": "atlas",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+---
+
+### 2. Discover Tools (`tools/list`)
+
+Returns all available Atlas compilation, scraping, mapping, and crawling tools along with their full Zod-generated JSON Schema definitions.
+
+#### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+---
+
+### 3. Execute Tool (`tools/call`)
+
+Executes a specific Atlas tool synchronously.
+
+#### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "atlas_compile",
+    "arguments": {
+      "url": "https://example.com",
+      "format": "markdown",
+      "max_output_chars": 25000
+    }
+  }
+}
+```
+
+#### Response (200 OK)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "# Example Domain\n\nThis domain is for use in documentation examples...\n\n---\n**Compilation ID:** `comp_018f2a1b9e00`\n**Resource URI:** `atlas://compilations/comp_018f2a1b9e00`"
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+---
+
+## Virtual Resource URI Schemes
+
+Atlas exposes virtual resource templates via the `atlas://` URI scheme. When a compilation or crawl result exceeds an agent's character budget, the truncated output provides resource URIs for lazy retrieval.
+
+| URI Template | Description |
+| :--- | :--- |
+| `atlas://compilations/{compilation_id}` | Full compiled Markdown document without truncation. |
+| `atlas://compilations/{compilation_id}/ast` | Structured AST content graph as a JSON object. |
+| `atlas://compilations/{compilation_id}/sections/{section_id}` | Individual section or heading block from the compiled document. |
+| `atlas://crawls/{crawl_id}` | Paginated compilation manifest and page list for a crawl job. |
+
+### Reading a Resource (`resources/read`)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "resources/read",
+  "params": {
+    "uri": "atlas://compilations/comp_018f2a1b9e00"
+  }
+}
+```
+
+---
+
+## Security & DNS Rebinding Defenses
+
+Atlas implements strict host and origin filtering to defend against DNS rebinding attacks:
+
+1. **Host Header Validation**: Requests to `POST /mcp` must present an allowed Host header (`api.atlas-compiler.com`). Unrecognized or remapped Host headers are rejected with `403 Forbidden`.
+2. **Origin Header Enforcement**: For browser-based MCP clients, only approved Atlas web domains and local developer origins (`localhost`, `127.0.0.1`) are permitted. Non-browser clients (which omit `Origin`) pass unimpeded.
+3. **Stateless Ingress**: Non-POST/OPTIONS requests (such as `GET /mcp`) are explicitly rejected with `405 Method Not Allowed`, ensuring client implementations do not assume stateful long-lived HTTP socket sessions.

@@ -1,0 +1,5 @@
+```http
+Idempotency-Key: your-unique-uuid-v4
+```
+
+To prevent duplicate execution and billing charges on retryable operations, pass a unique UUID v4 in the `Idempotency-Key` header. Atlas caches idempotent responses for up to 24 hours. If a request is retried with the same key, Atlas returns the cached result with an identical HTTP status code without re-executing or deducting duplicate credits.

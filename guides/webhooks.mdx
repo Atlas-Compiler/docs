@@ -1,0 +1,420 @@
+---
+title: "Webhooks"
+description: "Configure webhooks, receive real-time crawl and batch event notifications, and verify Standard Webhooks signatures."
+---
+
+When running multi-page crawls or large batch compilations, waiting on synchronous HTTP connections is inefficient. Atlas provides **automated webhooks** to notify your servers the moment an asynchronous execution reaches a terminal state or compiles a page.
+
+Atlas follows the open [Standard Webhooks](https://standardwebhooks.com) specification, providing timestamp-based replay protection, HMAC-SHA256 signatures, and a 24-hour dual-signature grace period for zero-downtime secret rotation.
+
+---
+
+## Webhook delivery architecture
+
+```
+Atlas Crawl / Batch Job
+          │
+          ▼ State transition (job.ready, crawl.page_completed, etc.)
+┌────────────────────────────────────────────────────────┐
+│ Atlas Webhook Gateway                                  │
+│  • Enforces anti-SSRF security & public HTTPS egress   │
+│  • Computes Standard Webhooks HMAC-SHA256 signature    │
+│  • Signs message ID, timestamp, and raw payload        │
+│  • Dispatches HTTP POST with TLS 1.3                   │
+└───────────────────────┬────────────────────────────────┘
+                        │ HTTP POST with webhook-id, webhook-signature
+                        ▼
+               Your Webhook Receiver
+         (Returns HTTP 2xx within 10 seconds)
+```
+
+---
+
+## Integration models
+
+Atlas supports three ways to configure webhooks depending on your architecture:
+
+### 1. Shorthand inline URL
+
+For simple workflows, supply a destination URL string directly in your `POST /v1/crawls` or `POST /v1/batches` request.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 50,
+  "webhook": "https://api.your-domain.com/webhooks/atlas"
+}
+```
+
+- **Events delivered**: Default terminal events (`job.ready`, `job.failed`, `job.cancelled`).
+- **Signing secret**: Signed with your **Workspace default webhook secret** (found in the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under **Webhooks**).
+- **Streaming events**: Streaming page events (`crawl.page_completed`) are suppressed by default.
+
+### 2. Structured inline webhook
+
+To filter events or attach custom tracking metadata to callbacks, pass an object with `url`, `events`, and `metadata`.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 50,
+  "webhook": {
+    "url": "https://api.your-domain.com/webhooks/atlas",
+    "events": ["job.ready", "job.failed"],
+    "metadata": {
+      "environment": "production",
+      "tenantId": "cust_12345",
+      "pipelineRun": "run_98765"
+    }
+  }
+}
+```
+
+- **Event filtering**: Deliver only the events your service needs.
+- **Metadata pass-through**: The `metadata` key-value pairs are returned in the callback payload under both root `metadata` and `data.metadata`.
+- **Signing secret**: Signed with your **Workspace default webhook secret**.
+
+### 3. Configured workspace endpoints
+
+For persistent production infrastructure, register reusable endpoints in the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under **Webhooks** or via the REST API.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 50,
+  "webhook": {
+    "endpointId": "whk_01M3V0V7CGY4YFZHEBDQ80N73S"
+  }
+}
+```
+
+- **Dedicated signing secret**: Each endpoint receives a unique signing secret starting with `whsec_`.
+- **Delivery logs**: View individual delivery attempts, response codes, latencies, and response excerpts directly in the dashboard.
+- **Manual redrive**: Retry failed deliveries with one click from the delivery drawer.
+
+---
+
+## Supported event types
+
+| Event type | Category | Trigger condition | Default inline |
+| :--- | :--- | :--- | :--- |
+| `job.ready` | Terminal | An asynchronous crawl or batch job finished compiling all pages. Results are ready at `/v1/jobs/{jobId}/results`. | Yes |
+| `job.failed` | Terminal | A job failed due to execution failure or unrecoverable network errors. | Yes |
+| `job.cancelled` | Terminal | A job was explicitly cancelled via `DELETE /v1/jobs/{jobId}`. | Yes |
+| `crawl.page_completed` | Streaming | A single page within a crawl job finished compilation. Delivers page index, artifact links, and credit usage. | Opt-in only |
+| `webhook.test` | Diagnostics | A test ping dispatched from the Atlas Dashboard to verify endpoint connectivity and signature verification. | No |
+
+<Warning>
+  `crawl.page_completed` can generate high request volumes on large crawls (for example, 1,000 pages). It requires explicit subscription in your `events` list and is never delivered by shorthand string URLs.
+</Warning>
+
+---
+
+## Standard Webhooks wire protocol
+
+Atlas webhooks adhere to the open [Standard Webhooks](https://standardwebhooks.com) specification. Every HTTP POST includes the following headers:
+
+| Header | Example | Description |
+| :--- | :--- | :--- |
+| `webhook-id` | `msg_20261001061955_whk_01M3...` | Unique message identifier for delivery deduplication. |
+| `webhook-timestamp` | `1790835595` | Integer Unix epoch timestamp (seconds) when the payload was signed. |
+| `webhook-signature` | `v1,4e532b21cf57ad...` | Space-separated HMAC-SHA256 signatures prefixed with version `v1,`. |
+
+<Info>
+  **Legacy compatibility headers**: Atlas also includes `x-atlas-signature` (`t=...,v1=...`) and `x-atlas-webhook-timestamp` for backward compatibility with existing webhook libraries.
+</Info>
+
+---
+
+## Canonical event payloads
+
+### Terminal job event (`job.ready`, `job.failed`, `job.cancelled`)
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "evt_01M3V2R5..._job_01M3V2...",
+  "type": "job.ready",
+  "timestamp": "2026-10-01T10:38:19.263Z",
+  "createdAt": "2026-10-01T10:38:19.263Z",
+  "workspaceId": "ws_01M3PT5WDHXYZF4J1CT9P4R6TA",
+  "projectId": "prj_01M3PT5WDHXYZF4J1CT9P4R6TB",
+  "data": {
+    "jobId": "job_01M3V2R5F8VJQPTYG0R5JXXWAS",
+    "kind": "crawl",
+    "status": "ready",
+    "request": {
+      "rootUrl": "https://example.com/docs"
+    },
+    "stats": {
+      "totalPages": 42,
+      "successfulPages": 42,
+      "failedPages": 0,
+      "creditsUsed": 42,
+      "durationMs": 14250
+    },
+    "artifacts": {
+      "resultsUrl": "https://api.atlas-compiler.com/v1/jobs/job_01M3V2R5F8VJQPTYG0R5JXXWAS/results",
+      "errorsUrl": "https://api.atlas-compiler.com/v1/jobs/job_01M3V2R5F8VJQPTYG0R5JXXWAS/errors"
+    },
+    "metadata": {
+      "environment": "production"
+    }
+  },
+  "metadata": {
+    "environment": "production"
+  },
+  "error": null
+}
+```
+
+When `type` is `job.failed`, the `error` field contains `{ "code": "job_failed", "message": "..." }`.
+
+### Streaming page event (`crawl.page_completed`)
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "evt_01M3V2R5..._0",
+  "type": "crawl.page_completed",
+  "timestamp": "2026-10-01T10:38:15.112Z",
+  "createdAt": "2026-10-01T10:38:15.112Z",
+  "workspaceId": "ws_01M3PT5WDHXYZF4J1CT9P4R6TA",
+  "projectId": "prj_01M3PT5WDHXYZF4J1CT9P4R6TB",
+  "data": {
+    "jobId": "job_01M3V2R5F8VJQPTYG0R5JXXWAS",
+    "pageIndex": 0,
+    "url": "https://example.com/docs/quickstart",
+    "statusCode": 200,
+    "artifact": {
+      "id": "art_01M3V2R5...",
+      "resultsUrl": "https://api.atlas-compiler.com/v1/jobs/job_01M3V2R5F8VJQPTYG0R5JXXWAS/results"
+    },
+    "metadata": {
+      "title": "Quickstart Guide",
+      "canonicalUrl": "https://example.com/docs/quickstart"
+    },
+    "userMetadata": {
+      "environment": "production"
+    },
+    "usage": {
+      "credits": 1
+    }
+  },
+  "metadata": {
+    "environment": "production"
+  },
+  "error": null
+}
+```
+
+---
+
+## Signature verification
+
+To protect your webhook receiver against forged requests and replay attacks, verify the signature before processing any payload:
+
+1. **Verify timestamp freshness**: Check that `webhook-timestamp` is within **300 seconds (5 minutes)** of your system clock.
+2. **Reconstruct signed payload**: Construct the string `${webhook-id}.${webhook-timestamp}.${rawBody}` using the exact raw bytes of the request body.
+3. **Compute HMAC-SHA256**: Calculate HMAC-SHA256 using the base64-decoded secret key (stripping any `whsec_` or `whsec_ws_` prefix).
+4. **Compare signatures**: Perform a **constant-time comparison** against the signature in `webhook-signature`.
+
+### Verification examples
+
+<CodeGroup>
+
+```typescript TypeScript (SDK)
+import { verifyWebhookSignature } from '@atlascompiler/sdk';
+
+// In your Express, Next.js, or Hono route handler:
+app.post('/webhooks/atlas', async (req, res) => {
+  const rawBody = req.rawBody; // Use raw string or Uint8Array body
+  const headers = req.headers;
+  const secret = process.env.ATLAS_WEBHOOK_SECRET!;
+
+  const result = await verifyWebhookSignature({
+    payload: rawBody,
+    headers: headers,
+    secret: secret,
+    toleranceSeconds: 300, // 5-minute replay tolerance window
+  });
+
+  if (!result.valid) {
+    console.error('Webhook verification failed:', result.error);
+    return res.status(401).send('Invalid signature');
+  }
+
+  const event = result.event;
+  console.log(`Verified ${event.type} for job ${event.data.jobId}`);
+  return res.status(200).send('OK');
+});
+```
+
+```python Python (SDK)
+from flask import Flask, request, abort
+from atlascompiler import verify_webhook_signature
+import os
+
+app = Flask(__name__)
+
+@app.route("/webhooks/atlas", methods=["POST"])
+def atlas_webhook():
+    raw_payload = request.get_data(as_text=True)
+    headers = request.headers
+    secret = os.environ["ATLAS_WEBHOOK_SECRET"]
+
+    result = verify_webhook_signature(
+        payload=raw_payload,
+        headers=headers,
+        secret=secret,
+        tolerance_seconds=300,
+    )
+
+    if not result.valid:
+        print(f"Webhook verification failed: {result.error}")
+        abort(401)
+
+    event = result.event
+    print(f"Verified event: {event['type']} for job {event['data']['jobId']}")
+    return "OK", 200
+```
+
+```go Go (SDK)
+package main
+
+import (
+	"io"
+	"log"
+	"net/http"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func webhookHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Cannot read body", http.StatusBadRequest)
+		return
+	}
+
+	secret := os.Getenv("ATLAS_WEBHOOK_SECRET")
+
+	result, err := atlas.VerifyWebhook(body, r.Header, secret)
+	if err != nil || !result.Valid {
+		log.Printf("Invalid signature: %v (error: %s)", err, result.Error)
+		http.Error(w, "Invalid signature", http.StatusUnauthorized)
+		return
+	}
+
+	log.Printf("Received verified event %v", result.Event["type"])
+	w.WriteHeader(http.StatusOK)
+}
+```
+
+```typescript Node.js (Web Crypto)
+import crypto from 'node:crypto';
+
+export function verifyAtlasWebhook(rawBody: string, headers: Record<string, string>, secret: string) {
+  const id = headers['webhook-id'];
+  const timestampStr = headers['webhook-timestamp'];
+  const signatureHeader = headers['webhook-signature'];
+
+  if (!id || !timestampStr || !signatureHeader) {
+    throw new Error('Missing Standard Webhooks headers');
+  }
+
+  const timestamp = Number(timestampStr);
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > 300) {
+    throw new Error('Webhook timestamp outside 5-minute tolerance window');
+  }
+
+  // Strip prefix and decode base64 key
+  const cleanKey = secret.replace(/^whsec_(?:ws_)?/, '').replace(/-/g, '+').replace(/_/g, '/');
+  const keyBytes = Buffer.from(cleanKey, 'base64');
+
+  const signedPayload = `${id}.${timestamp}.${rawBody}`;
+  const computedSignature = `v1,${crypto.createHmac('sha256', keyBytes).update(signedPayload).digest('base64')}`;
+
+  const expectedSignatures = signatureHeader.split(' ');
+  const isValid = expectedSignatures.some((sig) =>
+    sig.length === computedSignature.length &&
+    crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(computedSignature))
+  );
+
+  if (!isValid) throw new Error('Signature mismatch');
+  return JSON.parse(rawBody);
+}
+```
+
+</CodeGroup>
+
+---
+
+## Zero-downtime secret rotation
+
+When you rotate your webhook secret in the Atlas Dashboard, Atlas provides a **24-hour dual-signature grace period**:
+
+```http
+webhook-signature: v1,NewSignatureBase64== v1,PreviousSignatureBase64==
+```
+
+1. The first signature is computed using your **new secret**.
+2. The second signature is computed using your **previous secret**.
+3. Your server can update its environment configuration at any point during the 24 hours without dropping any events.
+4. All official Atlas SDKs automatically check both current and candidate secrets during the grace period.
+
+<CodeGroup>
+
+```typescript TypeScript (Dual-Secret Migration)
+const result = await verifyWebhookSignature({
+  payload: rawBody,
+  headers: req.headers,
+  secret: process.env.ATLAS_WEBHOOK_SECRET!,          // New secret
+  previousSecret: process.env.ATLAS_OLD_WEBHOOK_SECRET, // Old secret during rotation
+});
+```
+
+```python Python (Dual-Secret Migration)
+result = verify_webhook_signature(
+    payload=raw_payload,
+    headers=request.headers,
+    secret=os.environ["ATLAS_WEBHOOK_SECRET"],
+    previous_secret=os.getenv("ATLAS_OLD_WEBHOOK_SECRET"),
+)
+```
+
+</CodeGroup>
+
+---
+
+## Delivery guarantees & retries
+
+- **At-least-once delivery**: In rare network split scenarios, an event may be delivered more than once. Use the `webhook-id` header or the payload `id` as an **idempotency key** to prevent duplicate processing in your database.
+- **Immediate response required**: Your webhook receiver must respond with an HTTP `2xx` status code within **10 seconds**. If your business logic takes longer, offload processing to an internal queue or background worker.
+- **Exponential backoff with jitter**: If your endpoint returns an HTTP status outside the `2xx` range (or times out), Atlas automatically retries across **12 attempts over 72 hours**:
+
+| Attempt | Minimum backoff delay |
+| :--- | :--- |
+| **Attempt 1 $\rightarrow$ 2** | 30 seconds |
+| **Attempt 2 $\rightarrow$ 3** | 2 minutes |
+| **Attempt 3 $\rightarrow$ 4** | 5 minutes |
+| **Attempt 4 $\rightarrow$ 5** | 15 minutes |
+| **Attempt 5 $\rightarrow$ 6** | 30 minutes |
+| **Attempt 6 $\rightarrow$ 7** | 1 hour |
+| **Attempt 7 $\rightarrow$ 12** | 2h, 4h, 8h, 16h, 32h |
+
+- **Dead delivery status**: Deliveries that exhaust all 12 attempts transition to `status: 'dead'`. You can view error logs and trigger redelivery directly from the Atlas Dashboard.
+
+---
+
+## Security & anti-SSRF protections
+
+Atlas enforces strict transport and destination controls to protect internal infrastructure and external receivers:
+
+1. **HTTPS required**: All webhook destination URLs must use `https://`. Unencrypted `http://` URLs are rejected with HTTP 400.
+2. **Public internet only**: Webhooks cannot target loopback addresses (`127.0.0.1`, `localhost`), private RFC 1918 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local IPs, or cloud instance metadata endpoints (`169.254.169.254`).
+3. **Standard HTTPS port**: Destinations must communicate over standard HTTPS port 443. Non-standard ports are blocked by the Atlas Egress Gateway.
+4. **TLS 1.3 & modern cipher suites**: Deliveries negotiate TLS 1.3 or TLS 1.2 with modern forward-secrecy cipher suites.
+5. **Payload size bound**: Webhook payloads are capped at 64 KB. Large crawl artifacts are provided as signed URLs (`data.artifacts.resultsUrl`) rather than embedded in the callback body.

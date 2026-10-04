@@ -1,0 +1,184 @@
+---
+title: "Python SDK"
+description: "Official atlascompiler package for Python applications, AI agents, and RAG data pipelines."
+---
+
+The official `atlascompiler` Python SDK provides a modern, type-annotated client powered by `httpx`. It is designed for seamless integration with Python AI workflows, LangChain, LlamaIndex, CrewAI, and FastAPI backends.
+
+---
+
+## Installation
+
+<CodeGroup>
+```bash pip
+pip install atlascompiler
+```
+
+```bash poetry
+poetry add atlascompiler
+```
+
+```bash uv
+uv add atlascompiler
+```
+</CodeGroup>
+
+---
+
+## Initialization
+
+Initialize the `AtlasClient`. Credentials are automatically resolved from the `ATLAS_API_KEY` environment variable if not passed explicitly:
+
+```python
+import os
+from atlascompiler import AtlasClient
+
+# Reads ATLAS_API_KEY from environment automatically
+client = AtlasClient()
+
+# Or pass explicitly:
+client = AtlasClient(api_key="atlas_...", timeout=30.0)
+```
+
+The client also supports the context manager pattern:
+
+```python
+with AtlasClient() as client:
+    result = client.scrape({"url": "https://example.com"})
+    print(result.value["data"]["markdown"])
+```
+
+---
+
+## Core Operations
+
+### 1. Scrape a URL
+
+```python
+result = client.scrape({
+    "url": "https://news.ycombinator.com",
+    "formats": ["markdown", "links"]
+})
+
+print("Title:", result.value["metadata"]["title"])
+print("Markdown:\n", result.value["data"]["markdown"])
+```
+
+---
+
+### 2. Compile Dynamic Pages & Tables
+
+```python
+result = client.compile({
+    "url": "https://stripe.com/pricing",
+    "cache": {"forceFresh": False}
+})
+
+print("Compiled Markdown:\n", result.value["markdown"])
+```
+
+---
+
+### 3. Map Domain Topology
+
+```python
+result = client.map({
+    "url": "https://docs.github.com",
+    "limit": 100,
+    "sitemap": "include"
+})
+
+print(f"Discovered {len(result.value['links'])} URLs:")
+for link in result.value["links"]:
+    print(" -", link["url"])
+```
+
+---
+
+### 4. Asynchronous Crawls
+
+```python
+# 1. Create crawl job
+crawl = client.create_crawl({
+    "url": "https://docs.stripe.com",
+    "maxPages": 50,
+    "includePaths": ["/docs/**"],
+})
+
+job_id = crawl.value["id"]
+print(f"Admitted crawl job: {job_id}")
+
+# 2. Wait for completion using built-in helper
+job = client.wait_for_job(job_id)
+
+# 3. Retrieve compiled pages
+if job["status"] == "ready":
+    results = client.list_job_results(job_id, limit=50)
+    for item in results.value["data"]:
+        print(item["url"], "->", len(item["markdown"]))
+```
+
+---
+
+## Error Handling
+
+The SDK raises `AtlasError` (or `AtlasApiError`) containing RFC 9457 Problem Details:
+
+```python
+from atlascompiler import AtlasClient, AtlasError
+
+client = AtlasClient()
+
+try:
+    client.compile({"url": "https://invalid-domain.example"})
+except AtlasError as err:
+    print(f"HTTP Status: {err.status}")
+    print(f"Machine Code: {err.code}")
+    print(f"Detail: {err.message}")
+    print(f"Request ID: {err.request_id}")
+    print(f"Retryable: {err.retryable}")
+```
+
+---
+
+## Verifying webhook signatures
+
+The Python SDK exports `verify_webhook_signature` to validate incoming Standard Webhooks requests from Atlas:
+
+```python
+import os
+from atlascompiler import verify_webhook_signature
+
+# In your Flask, FastAPI, or Django webhook route:
+result = verify_webhook_signature(
+    payload=request.get_data(as_text=True),  # raw bytes or string
+    headers=request.headers,                 # dictionary or mapping of headers
+    secret=os.environ["ATLAS_WEBHOOK_SECRET"],
+    previous_secret=os.getenv("ATLAS_OLD_WEBHOOK_SECRET"),  # optional 24h rotation support
+    tolerance_seconds=300,                                  # 5-minute replay window (default: 300)
+)
+
+if not result.valid:
+    print(f"Webhook verification rejected: {result.error}")
+    raise ValueError("Invalid webhook signature")
+
+event = result.event
+print(f"Verified event {event['type']} for job {event['data']['jobId']}")
+```
+
+### Verification parameters
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `payload` | `str \| bytes` | **Yes** | The exact unparsed HTTP request body string or raw bytes. |
+| `headers` | `Mapping[str, Any]` | **Yes** | Request headers dictionary containing `webhook-id`, `webhook-timestamp`, and `webhook-signature`. |
+| `secret` | `str \| list[str]` | **Yes** | Primary webhook secret (`whsec_...`) or list of valid candidate secrets. |
+| `previous_secret` | `str \| None` | No | Previous secret for zero-downtime 24-hour secret rotation. |
+| `tolerance_seconds` | `int` | No | Maximum allowed clock skew in seconds (default: `300`). Pass negative value to disable. |
+
+### Return value
+
+Returns a `WebhookVerifyResult` named tuple / model:
+- `result.valid`: Boolean indicating whether the signature and timestamp are valid.
+- `result.error`: Error reason string if invalid (`"missing_headers"`, `"invalid_format"`, `"timestamp_out_of_range"`, `"signature_mismatch"`).
+- `result.event`: Parsed event dictionary when `result.valid is True`.

@@ -1,0 +1,199 @@
+---
+title: "Batch Extraction"
+description: "How to process bounded multi-URL compilation jobs concurrently with POST /v1/batch/scrape."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+When you have a known list of URLs to compile, the `/v1/batch/scrape` endpoint allows you to submit up to 1,000 URLs in a single request. Atlas distributes the compilation workload across edge workers and aggregates results into a unified job artifact.
+
+<AuthHeader />
+
+---
+
+## Idempotency Protection
+
+<IdempotencyHeader />
+
+---
+
+## Code Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/batch/scrape \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Idempotency-Key: 7f3a9e22-1b4c-4a3d-9e12-8c9a3d4e5f6a" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com/page-1",
+      "https://example.com/page-2",
+      "https://example.com/page-3"
+    ],
+    "formats": ["markdown"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+const response = await client.createBatch({
+  urls: [
+    'https://example.com/page-1',
+    'https://example.com/page-2',
+    'https://example.com/page-3',
+  ],
+  formats: ['markdown'],
+});
+
+const jobId = response.value.id;
+console.log(`Batch job queued: ${jobId}`);
+
+// Wait for batch completion
+const job = await client.waitForJob(jobId);
+console.log(`Batch completed: ${job.progress?.completedItems} succeeded, ${job.progress?.failedItems} failed.`);
+
+// Fetch batch results
+const results = await client.listJobResults(jobId);
+results.value.data.forEach((item) => {
+  console.log(`- ${item.metadata.title}: ${item.markdown.slice(0, 100)}...`);
+});
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.create_batch({
+        "urls": [
+            "https://example.com/page-1",
+            "https://example.com/page-2",
+            "https://example.com/page-3",
+        ],
+        "formats": ["markdown"],
+    })
+
+    job_id = response.value["id"]
+    print(f"Batch queued: {job_id}")
+
+    job = client.wait_for_job(job_id)
+    print(f"Completed: {job['progress']['completedItems']} succeeded.")
+
+    results = client.list_job_results(job_id)
+    for item in results.value["data"]:
+        print(f"- {item['metadata']['title']}")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+	ctx := context.Background()
+
+	res, _, err := client.CreateBatch(ctx, atlas.CreateBatchRequest{
+		Urls: []string{
+			"https://example.com/page-1",
+			"https://example.com/page-2",
+		},
+		Formats: []string{"markdown"},
+	})
+	if err != nil {
+		log.Fatalf("Batch failed: %v", err)
+	}
+
+	jobID := res.Response202.Id
+	fmt.Printf("Batch job submitted: %s\n", jobID)
+
+	job, _, err := client.WaitForJob(ctx, jobID, time.Second, 60*time.Second)
+	if err != nil {
+		log.Fatalf("Batch failed: %v", err)
+	}
+	fmt.Printf("Status: %s\n", job.Status)
+}
+```
+
+</CodeGroup>
+
+---
+
+## Request parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `urls` | `string[]` | **Yes** | — | Array of 1 to 1,000 public web URLs to compile. |
+| `formats` | `string[]` | No | `["markdown"]` | Desired output formats (`"markdown"`, `"ir"`, `"metadata"`). |
+| `webhook` | `string \| object` | No | — | Push notification target: a destination HTTPS URL string, an object with `url`, `events`, and `metadata`, or `{ endpointId: string }`. |
+| `cache` | `object` | No | — | Caching options (`mode`, `maxAgeSeconds`). |
+
+---
+
+## Using webhooks with batches
+
+For large batch compilations (up to 1,000 URLs), attach a webhook to receive an automated notification the moment the entire batch finishes processing:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/batches \
+  -H "Authorization: Bearer $ATLAS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com/page-1",
+      "https://example.com/page-2"
+    ],
+    "webhook": {
+      "url": "https://api.your-domain.com/webhooks/atlas",
+      "events": ["job.ready", "job.failed"],
+      "metadata": {
+        "batchSource": "nightly-catalog-sync"
+      }
+    }
+  }'
+```
+
+```typescript TypeScript SDK
+const batch = await client.createBatch({
+  urls: [
+    'https://example.com/page-1',
+    'https://example.com/page-2',
+  ],
+  webhook: 'https://api.your-domain.com/webhooks/atlas',
+});
+```
+
+</CodeGroup>
+
+<Info>
+  **Aggregated terminal callback**: Batch jobs dispatch a single aggregated terminal callback (`job.ready` or `job.failed`) once all individual URLs in the batch have been compiled or isolated.
+</Info>
+
+---
+
+## Handling partial failures
+
+In batch operations, a single failing URL (such as a 404 Not Found or upstream timeout) **never aborts the entire batch**. 
+
+Atlas executes every URL independently:
+- Successfully compiled pages are stored and returned via `GET /v1/jobs/{jobId}/results`.
+- Failed URLs are isolated and reported with detailed error diagnostics via `GET /v1/jobs/{jobId}/errors`.
+- Your credit balance is billed strictly for **successfully compiled pages**.

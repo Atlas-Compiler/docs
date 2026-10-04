@@ -1,0 +1,100 @@
+---
+title: "Authentication & API Keys"
+description: "How to authenticate Atlas API requests, configure API key scopes, and handle workspace resolution."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+Every request to the Atlas API must be authenticated using an API key passed in the HTTP `Authorization` header using the `Bearer` scheme.
+
+---
+
+## Passing Your API Key
+
+<AuthHeader />
+
+Requests missing the `Authorization` header, or containing an invalid key, will return an `HTTP 401 Unauthorized` response with RFC 9457 Problem Details:
+
+```json
+{
+  "type": "https://api.atlas-compiler.com/errors/invalid_credentials",
+  "title": "Invalid credentials",
+  "status": 401,
+  "detail": "A valid bearer credential is required.",
+  "code": "invalid_credentials"
+}
+```
+
+---
+
+## API Key Anatomy
+
+Atlas API keys follow a standard format:
+
+```text
+atlas_[43 base64url characters]
+```
+
+- **Prefix**: `atlas_` prefix identifying an Atlas API credential.
+- **Entropy**: 43 cryptographically random base64url characters generated using 256 bits of secure system entropy (total key length: 49 characters).
+- **Hashing**: Keys are hashed in storage using HMAC-SHA256 with rotating server-side pepper secrets. Atlas never stores raw API keys in plain text.
+
+---
+
+## Automatic Workspace Resolution
+
+When you send a request authenticated by an API key, Atlas automatically resolves the key's associated **workspace**, **billing account**, and **rate limits** from the cryptographic token.
+
+You do **not** need to manually pass a `workspaceId` in headers or URL paths for standard execution endpoints (`/v1/scrape`, `/v1/compile`, `/v1/map`, `/v1/crawls`, `/v1/batch/scrape`). The key itself establishes your operational tenancy.
+
+---
+
+## API Key Scopes
+
+Each API key can be restricted to specific capabilities for principle-of-least-privilege security:
+
+| Scope | Capability Description |
+| :--- | :--- |
+| `execute` | Allows invoking `/v1/scrape`, `/v1/compile`, `/v1/map`, `/v1/crawls`, and `/v1/batch/scrape`. |
+| `jobs:read` | Allows checking job status (`GET /v1/jobs/{id}`), polling results, and inspecting errors. |
+| `jobs:cancel` | Allows cancelling in-flight crawls or batch operations (`POST /v1/jobs/{id}/cancel`). |
+| `projects:read` | Allows querying project metadata and associated execution history. |
+| `usage:read` | Allows inspecting credit consumption ledgers and workspace balance. |
+
+<Tip>
+  For automated production worker pipelines, generate an API key restricted solely to `execute` and `jobs:read`.
+</Tip>
+
+---
+
+## Security Features
+
+### IP Allowlisting
+
+You can optionally lock an API key to specific IPv4 or IPv6 addresses or CIDR ranges in the Atlas Dashboard. If a request arrives from an unauthorized IP address, Atlas immediately rejects it with `HTTP 403 Forbidden` (`code: ip_not_allowed`).
+
+### Activity Monitoring
+
+Atlas tracks the last-used timestamp of every key in 15-minute activity buckets without adding database latency to your execution path. You can audit key utilization in real time from the dashboard.
+
+### Zero-Downtime Key Rotation
+
+To rotate credentials without downtime:
+1. Generate a new API key in the [Atlas Dashboard](https://dashboard.atlas-compiler.com) under the **API Keys** section.
+2. Deploy the new key to your environment variables or secret manager.
+3. Verify that your applications are successfully authenticating with the new key.
+4. Revoke the old key in the dashboard.
+
+---
+
+## Environment Variable Standards
+
+Atlas SDKs automatically check for standard environment variables when no explicit key is provided in constructors:
+
+```bash
+# Standard environment variable read by all SDKs
+export ATLAS_API_KEY="atlas_your_api_key_here"
+
+# Optional project scoping
+export ATLAS_PROJECT_ID="prj_your_project_id"
+```

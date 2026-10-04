@@ -1,0 +1,255 @@
+---
+title: "MCP Tools Reference"
+description: "Comprehensive parameter schemas, return types, and usage examples for all 5 native Atlas Model Context Protocol tools."
+---
+
+The Atlas Model Context Protocol (MCP) server exposes 5 core tools for LLM tool calling. Each tool is built with strict parameter validation using Zod, context window protection via automatic character budgeting, and standardized error responses.
+
+---
+
+## Tool Selection Decision Matrix
+
+Agents should consult this decision matrix to determine the most cost-effective and low-latency tool for any web task:
+
+| User Intent | Tool | Latency | Primary Advantage |
+| :--- | :--- | :--- | :--- |
+| Read single article, blog post, or standard page | `atlas_scrape` | ~1.3s | Fast extraction with minimal overhead and optional link discovery. |
+| Extract pricing matrices, complex tables, SPAs | `atlas_compile` | ~1.6s | Full deterministic layout compilation preserving GFM tables and AST graphs. |
+| Map all URLs or discover sitemaps on a domain | `atlas_map` | ~800ms | Rapid link graph and XML sitemap discovery without downloading page content. |
+| Spider multi-page documentation sections | `atlas_crawl` | Multi-page | Recursive traversal with path globs (`includePaths`) and bounded polling. |
+| Compile a known list of 2–20 URLs in parallel | `atlas_batch_compile` | Parallel | Concurrent execution with isolated per-page error handling and budgets. |
+
+---
+
+## `atlas_scrape`
+
+Fast-path single-page extraction with low latency and optional link discovery.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The absolute HTTP or HTTPS URL to scrape. |
+| `formats` | `string[]` | No | `["markdown"]` | Desired output formats: `"markdown"`, `"links"`, or `"text"`. |
+| `max_output_chars` | `integer` | No | `30000` | Maximum character budget. If exceeded, content is cleanly sliced. |
+| `timeout_ms` | `integer` | No | `30000` | Execution timeout in milliseconds (max: 60000). |
+
+### Return Schema
+
+```typescript
+interface AtlasScrapeResult {
+  url: string;
+  title: string;
+  markdown?: string;
+  text?: string;
+  links?: Array<{ url: string; text: string }>;
+  stats: {
+    character_count: number;
+    word_count: number;
+    read_time_seconds: number;
+  };
+  truncated: boolean;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_scrape",
+  "arguments": {
+    "url": "https://example.com/blog/announcement",
+    "formats": ["markdown", "links"],
+    "max_output_chars": 20000
+  }
+}
+```
+
+---
+
+## `atlas_compile`
+
+High-fidelity deterministic visual compiler. Preserves complex layout geometries, multi-column tables, syntax-highlighted code fences, and semantic document outlines.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The absolute HTTP or HTTPS URL to compile. |
+| `format` | `string` | No | `"markdown"` | Output format: `"markdown"`, `"semantic"` (includes AST), or `"markdown+links"`. |
+| `max_output_chars` | `integer` | No | `30000` | Character budget (min: 1000, max: 200000). Content beyond budget is truncated with resource URIs. |
+| `force_fresh` | `boolean` | No | `false` | When `true`, bypasses edge cache and forces a fresh compilation. |
+
+### Return Schema
+
+```typescript
+interface AtlasCompileResult {
+  url: string;
+  compilation_id: string;
+  title: string;
+  markdown?: string;
+  ast?: Record<string, unknown>;
+  headings?: Array<{
+    level: number;
+    text: string;
+    id?: string;
+    resource_uri?: string;
+  }>;
+  resources: {
+    compiled_artifact_uri: string; // e.g. "atlas://compilations/comp_abc123"
+    ast_uri?: string;              // e.g. "atlas://compilations/comp_abc123/ast"
+  };
+  stats: {
+    character_count: number;
+    tokens_saved_pct?: number;     // Average: 65% token tax elimination
+    compilation_time_ms: number;
+  };
+  truncated: boolean;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_compile",
+  "arguments": {
+    "url": "https://stripe.com/pricing",
+    "format": "markdown",
+    "max_output_chars": 50000
+  }
+}
+```
+
+---
+
+## `atlas_map`
+
+Sitemap-first domain topology discovery. Traverses XML sitemaps and HTML anchor graphs to map available URLs without downloading full page bodies.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | The root or entry URL of the domain to map. |
+| `limit` | `integer` | No | `100` | Maximum number of URLs to return (1 to 10,000). |
+| `include_subdomains` | `boolean` | No | `false` | When `true`, follows links across subdomains of the target. |
+| `sitemap` | `string` | No | `"include"` | Sitemap discovery policy: `"include"`, `"skip"`, or `"only"`. |
+
+### Return Schema
+
+```typescript
+interface AtlasMapResult {
+  root_url: string;
+  urls: string[];
+  count: number;
+  sitemaps_found: string[];
+  duration_ms: number;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_map",
+  "arguments": {
+    "url": "https://docs.github.com",
+    "limit": 50,
+    "sitemap": "include"
+  }
+}
+```
+
+---
+
+## `atlas_crawl`
+
+Recursive multi-page spidering with path filtering and depth control. Designed for documentation sets, knowledge bases, and multi-page technical guides.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Root starting URL for the crawl. |
+| `max_pages` | `integer` | No | `10` | Maximum number of pages to compile. |
+| `max_depth` | `integer` | No | `2` | Maximum link traversal depth from root (1 to 10). |
+| `include_paths` | `string[]` | No | `[]` | Glob patterns to restrict crawl boundaries (e.g., `["/docs/**"]`). |
+| `exclude_paths` | `string[]` | No | `[]` | Glob patterns to omit from the crawl (e.g., `["/blog/archive/**"]`). |
+
+### Return Schema
+
+```typescript
+interface AtlasCrawlResult {
+  crawl_id: string;
+  root_url: string;
+  pages_crawled: number;
+  pages_failed: number;
+  summary_markdown: string;
+  pages: Array<{
+    url: string;
+    title: string;
+    depth: number;
+    compilation_id?: string;
+    resource_uri: string;
+    character_count?: number;
+  }>;
+  duration_ms: number;
+}
+```
+
+### Bounded Polling Behavior
+
+`atlas_crawl` implements **opportunistic bounded polling** up to 3 seconds:
+- If the crawl completes within 3 seconds, all compiled page items are returned synchronously.
+- If the crawl is still running, Atlas performs a clean asynchronous handoff, returning the `crawl_id` and a resource URI (`atlas://crawls/{crawl_id}`) so your agent does not hang.
+
+---
+
+## `atlas_batch_compile`
+
+Parallel compilation of multiple URLs with per-page budget enforcement and isolated error resilience.
+
+### Input Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `urls` | `string[]` | **Yes** | — | Array of 1 to 20 absolute URLs to compile in parallel. |
+| `format` | `string` | No | `"markdown"` | Output format: `"markdown"`, `"semantic"`, or `"markdown+links"`. |
+| `max_output_chars_per_page` | `integer` | No | `15000` | Per-page character budget to prevent context window overflow. |
+
+### Return Schema
+
+```typescript
+interface AtlasBatchCompileResult {
+  total_requested: number;
+  successful: number;
+  failed: number;
+  results: Array<{
+    url: string;
+    status: 'success' | 'failed';
+    compilation_id?: string;
+    title?: string;
+    markdown?: string;
+    resource_uri?: string;
+    character_count?: number;
+    error?: string;
+  }>;
+}
+```
+
+### Example MCP Tool Call
+
+```json
+{
+  "name": "atlas_batch_compile",
+  "arguments": {
+    "urls": [
+      "https://docs.anthropic.com/en/docs/welcome",
+      "https://docs.anthropic.com/en/docs/models-overview",
+      "https://docs.anthropic.com/en/docs/prompt-engineering"
+    ],
+    "max_output_chars_per_page": 10000
+  }
+}
+```

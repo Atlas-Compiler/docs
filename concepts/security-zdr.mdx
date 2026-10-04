@@ -1,0 +1,70 @@
+---
+title: "Security & Zero Data Retention"
+description: "How Atlas guarantees ephemeral memory processing, strict SSRF protection, and Zero Data Retention (ZDR)."
+---
+
+Atlas is engineered for security-conscious engineering teams, enterprise compliance, and privacy-first AI agent architectures. 
+
+This document outlines our precise data lifecycle, Zero Data Retention architecture, and network security protections.
+
+---
+
+## Zero Data Retention (ZDR) Architecture
+
+In standard synchronous compilation (`POST /v1/scrape`), Atlas operates in strict **Zero Data Retention (ZDR)** mode:
+
+```
+Target Website (Origin)
+       │  TLS 1.3
+       ▼
+┌────────────────────────────────────────────────────────┐
+│ Atlas Edge Worker (Ephemeral Memory Buffer)            │
+│  • In-memory DOM parsing                               │
+│  • In-memory noise reduction                           │
+│  • Streaming response generation                       │
+└───────────────────────┬────────────────────────────────┘
+                        │  TLS 1.3 Streaming Response
+                        ▼
+             Your Application Server
+```
+
+### Data Lifecycle Boundaries:
+1. **Volatile Memory Only**: Inbound HTML and extracted markdown are held strictly in ephemeral edge worker memory during the duration of the request.
+2. **Zero Disk or Database Persistence**: In ZDR mode, Atlas writes zero bytes of target web content, HTML, or compiled markdown to persistent disk storage, object stores (such as R2), or databases.
+3. **Immediate Memory Reclamation**: The moment the HTTP response stream terminates, the worker execution scope is destroyed and volatile memory is reclaimed by the runtime.
+4. **No Model Training**: Atlas never uses customer data, requested URLs, or extracted web content to train machine learning models.
+
+---
+
+## Telemetry & Logging Policy
+
+To maintain service reliability while respecting privacy, Atlas maintains a strict separation between operational telemetry and customer payloads:
+
+| Data Class | Logged? | Description & Retention |
+| :--- | :--- | :--- |
+| **Operational Metrics** | **Yes** | Request timestamp, HTTP status code, P50 latency, billed credit count, and workspace identifier. Retained for 30 days for billing and abuse prevention. |
+| **Error Problem Codes** | **Yes** | Standard RFC 9457 error codes (e.g., `DNS_RESOLUTION_FAILED`, `RATE_LIMITED`) without payload bodies. |
+| **Extracted Markdown** | **NEVER** | The compiled markdown content is never captured in application logs. |
+| **Raw Origin HTML** | **NEVER** | Raw source HTML retrieved from origin servers is never logged or stored. |
+| **Customer Secrets** | **NEVER** | API keys and authorization headers are never written to log files. |
+
+---
+
+## Network Security & SSRF Hardening
+
+Outbound requests to the public web require rigorous network defenses. Atlas enforces active Server-Side Request Forgery (SSRF) controls on all target URLs:
+
+### Blocked Target Destinations:
+- **Loopback Addresses**: `127.0.0.0/8`, `localhost`, `::1`
+- **Private Subnets (RFC 1918)**: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
+- **Link-Local & Cloud Metadata**: `169.254.169.254`, `169.254.0.0/16`, `fe80::/10`
+- **Carrier-Grade NAT & Test Nets**: `100.64.0.0/10`, `192.0.2.0/24`, `198.51.100.0/24`
+
+Any request attempting to target private or internal IP addresses is rejected immediately before socket connection with `HTTP 400 Bad Request` (`code: invalid_target_url`).
+
+---
+
+## Encryption Standards
+
+- **In-Transit Encryption**: All public ingress traffic to `api.atlas-compiler.com` and all outbound egress requests to origin web servers require **TLS 1.3** (or TLS 1.2 minimum).
+- **Authentication Key Protection**: API keys are hashed in storage using keyed HMAC-SHA256 digests with rotating server-side pepper secrets. Raw keys are never accessible to database operators.

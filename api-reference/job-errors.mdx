@@ -1,0 +1,95 @@
+---
+title: "Get Job Errors"
+openapi: "GET /v1/jobs/{jobId}/errors"
+description: "Retrieve URL-level failure diagnostics, upstream status codes, and error categories for an asynchronous job."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+
+Inspect individual URL failures and execution diagnostics for an asynchronous crawl or batch compilation job.
+
+Because Atlas employs partial failure isolation, individual target page failures (such as a 404, 500 upstream server error, or network timeout) do not terminate the parent job. Use this endpoint to inspect failed items and diagnose upstream target issues.
+
+---
+
+## Authentication & Headers
+
+<AuthHeader />
+
+---
+
+## Code Examples
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.atlas-compiler.com/v1/jobs/job_01j7abc123/errors?limit=20" \
+  -H "Authorization: Bearer $ATLAS_API_KEY"
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY });
+
+const errors = await atlas.listJobErrors('job_01j7abc123', {
+  limit: 20,
+});
+
+for (const err of errors.value.data) {
+  console.error(`Failed: ${err.url} -> [${err.code}] ${err.detail}`);
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+client = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
+
+errors = client.list_job_errors("job_01j7abc123", limit=20)
+
+for err in errors.value["data"]:
+    print(f"Failed: {err['url']} -> [{err['code']}] {err['detail']}")
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	limit := 20
+	errors, _, err := client.ListJobErrors(context.Background(), "job_01j7abc123", nil, &limit)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, e := range errors.Data {
+		url := ""
+		if e.Url != nil {
+			url = *e.Url
+		}
+		fmt.Printf("Failed: %s -> [%s] %s\n", url, e.Code, e.Detail)
+	}
+}
+```
+</CodeGroup>
+
+---
+
+## Common Error Diagnostics
+
+Individual failed items in `errors.data` include:
+- `id`: Unique error record identifier (`artifact_...`).
+- `url`: The target URL that could not be compiled.
+- `code`: RFC 9457 error code (e.g. `upstream_timeout`, `upstream_fetch_failed`, `unsupported_content_type`).
+- `detail`: Diagnostic description of why compilation failed.
+- `occurredAt`: ISO 8601 timestamp when the failure occurred.

@@ -1,0 +1,141 @@
+---
+title: "Deep Compile"
+description: "How to perform deep structural analysis, AST graph extraction, and asynchronous execution with POST /v1/compile."
+---
+
+import AuthHeader from '/snippets/auth-header.mdx';
+import IdempotencyHeader from '/snippets/idempotency-header.mdx';
+
+The `/v1/compile` endpoint performs full structural compilation of web content. Unlike `/v1/scrape`, `/v1/compile` extracts complete **Intermediate Representation (IR)** content graphs and supports seamless transitions between synchronous execution (`200 OK`) and asynchronous queued processing (`202 Accepted`).
+
+<AuthHeader />
+
+---
+
+## Idempotency Protection
+
+<IdempotencyHeader />
+
+---
+
+## Code Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.atlas-compiler.com/v1/compile \
+  -H "Authorization: Bearer atlas_your_api_key_here" \
+  -H "Idempotency-Key: 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/documentation",
+    "formats": ["markdown", "ir"]
+  }'
+```
+
+```typescript TypeScript
+import { AtlasClient } from '@atlascompiler/sdk';
+
+const client = new AtlasClient({
+  apiKey: process.env.ATLAS_API_KEY,
+});
+
+// Compile automatically generates an execution UUIDv4 idempotency key
+const response = await client.compile({
+  url: 'https://example.com/documentation',
+  formats: ['markdown', 'ir'],
+});
+
+if (response.status === 200) {
+  // Synchronous compilation
+  console.log('Markdown:\n', response.value.markdown);
+  console.log('IR Nodes:', Object.keys(response.value.ir.contentGraph.nodes).length);
+} else if (response.status === 202) {
+  // Asynchronous execution: wait for job completion
+  const jobId = response.value.id;
+  console.log(`Job queued: ${jobId}. Polling for completion...`);
+  
+  const job = await client.waitForJob(jobId);
+  const results = await client.listJobResults(jobId);
+  console.log('Compiled Markdown:\n', results.value.data[0]?.markdown);
+}
+```
+
+```python Python
+import os
+from atlascompiler import AtlasClient
+
+with AtlasClient(os.getenv("ATLAS_API_KEY")) as client:
+    response = client.compile({
+        "url": "https://example.com/documentation",
+        "formats": ["markdown", "ir"],
+    })
+
+    if response.status == 200:
+        print("Markdown:\n", response.value["markdown"])
+        print("IR Version:", response.value["ir"]["version"])
+    elif response.status == 202:
+        job_id = response.value["id"]
+        print(f"Job queued: {job_id}. Polling...")
+        job = client.wait_for_job(job_id)
+        results = client.list_job_results(job_id)
+        print("Compiled Markdown:\n", results.value["data"][0]["markdown"])
+```
+
+```go Go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"go.atlas-compiler.com/sdk/pkg/atlas"
+)
+
+func main() {
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
+
+	res, _, err := client.Compile(context.Background(), atlas.CompileUrlRequest{
+		Url:     "https://example.com/documentation",
+		Formats: []string{"markdown", "ir"},
+	})
+	if err != nil {
+		log.Fatalf("Compile error: %v", err)
+	}
+
+	if res.Response200 != nil {
+		fmt.Printf("Markdown:\n%s\n", res.Response200.Markdown)
+		fmt.Printf("Credits: %d\n", res.Response200.Usage.Credits)
+	} else if res.Response202 != nil {
+		jobID := res.Response202.Id
+		fmt.Printf("Job queued: %s. Polling...\n", jobID)
+		job, _, err := client.WaitForJob(context.Background(), jobID, time.Second, 60*time.Second)
+		if err != nil {
+			log.Fatalf("Job failed: %v", err)
+		}
+		fmt.Printf("Job status: %s\n", job.Status)
+	}
+}
+```
+
+</CodeGroup>
+
+---
+
+## Request Parameters
+
+| Parameter | Type | Required | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `url` | `string` | **Yes** | — | Target URL to compile. |
+| `formats` | `string[]` | No | `["markdown", "ir"]` | Array of desired output models: `"markdown"`, `"ir"`, `"metadata"`. |
+| `cache` | `object` | No | — | Caching policy (`mode`, `maxAgeSeconds`). |
+
+---
+
+## Synchronous vs. Asynchronous Behavior
+
+- **HTTP 200 OK**: For most web pages, `/v1/compile` completes within 1.5 seconds and returns the compiled markdown and IR directly.
+- **HTTP 202 Accepted**: For complex, multi-frame pages or under peak concurrency, Atlas accepts the compilation task and queues it for asynchronous execution. The response includes an execution job ID (`id`), which can be queried via `GET /v1/jobs/{jobId}`.

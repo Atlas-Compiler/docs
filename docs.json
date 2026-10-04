@@ -1,0 +1,189 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Atlas Documentation",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://atlas-compiler.com"
+  },
+  "favicon": "/assets/favicon.svg",
+  "colors": {
+    "primary": "#15342D",
+    "light": "#34D399",
+    "dark": "#246B5A"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "color": {
+      "light": "#FFFFFF",
+      "dark": "#08110F"
+    }
+  },
+  "fonts": {
+    "heading": {
+      "family": "Inter",
+      "weight": 600
+    },
+    "body": {
+      "family": "Inter",
+      "weight": 400
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "get-started/quickstart",
+              "get-started/authentication"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/why-atlas",
+              "concepts/compiler-pipeline",
+              "concepts/output-models",
+              "concepts/security-zdr"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/scrape",
+              "guides/compile",
+              "guides/map",
+              "guides/crawl",
+              "guides/batch",
+              "guides/webhooks"
+            ]
+          },
+          {
+            "group": "Production & Governance",
+            "pages": [
+              "production/quotas",
+              "production/billing",
+              "production/reliability"
+            ]
+          },
+          {
+            "group": "Public Benchmarks",
+            "pages": [
+              "benchmarks/methodology",
+              "benchmarks/atlas-arena-results"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "REST API",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/overview",
+              "api-reference/errors"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "api-reference/scrape",
+              "api-reference/compile",
+              "api-reference/map",
+              "api-reference/crawl",
+              "api-reference/batch",
+              "api-reference/get-job",
+              "api-reference/job-results",
+              "api-reference/job-errors",
+              "api-reference/cancel-job"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDKs",
+        "groups": [
+          {
+            "group": "Official Client Libraries",
+            "pages": [
+              "sdk/overview",
+              "sdk/javascript",
+              "sdk/python",
+              "sdk/go"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "AI & MCP Hub",
+        "groups": [
+          {
+            "group": "Model Context Protocol",
+            "pages": [
+              "ai/mcp-overview",
+              "ai/cursor",
+              "ai/claude-desktop",
+              "ai/windsurf",
+              "ai/tools-reference",
+              "ai/protocol-reference",
+              "ai/agent-frameworks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "groups": [
+          {
+            "group": "Releases & Governance",
+            "pages": [
+              "changelog/overview",
+              "changelog/api-stability"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "api": {
+    "mdx": {
+      "server": "https://api.atlas-compiler.com"
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Dashboard",
+        "href": "https://dashboard.atlas-compiler.com"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get API Key",
+      "href": "https://dashboard.atlas-compiler.com"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Atlas-Compiler/Atlas",
+      "discord": "https://discord.gg/z9ktRhuudq"
+    }
+  },
+  "seo": {
+    "indexing": "navigable",
+    "metatags": {
+      "og:site_name": "Atlas Documentation",
+      "og:image": "/assets/atlas-social-card.png",
+      "twitter:card": "summary_large_image",
+      "twitter:site": "@atlascompiler"
+    }
+  }
+}

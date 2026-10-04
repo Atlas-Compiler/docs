@@ -1,0 +1,133 @@
+---
+title: "Claude Desktop Setup & Research Workflows"
+description: "Empower Claude Desktop with deterministic web compilation, research capabilities, and tabular data extraction using Atlas MCP."
+---
+
+import McpInit from '/snippets/mcp-init-snippet.mdx';
+
+Anthropic's Claude Desktop provides native support for the Model Context Protocol (MCP). By connecting Atlas to Claude Desktop, Claude gains the ability to autonomously browse, compile, and analyze live web content, complex documentation, and dynamic SPAs without losing formatting or blowing token budgets.
+
+---
+
+## 1-Click Interactive Setup
+
+The official Atlas setup wizard configures Claude Desktop automatically:
+
+<McpInit />
+
+Run the command with the `--global` flag:
+
+```bash
+npx -y @atlascompiler/mcp init --global
+```
+
+The wizard:
+1. Prompts for your Atlas API key.
+2. Locates your Claude Desktop configuration file.
+3. Automatically inserts the `atlas` MCP server definition without overwriting other configured tools.
+4. Validates connectivity with the Atlas API.
+
+---
+
+## Manual Configuration
+
+To configure Claude Desktop manually, locate your configuration file based on your operating system:
+
+| Operating System | Configuration File Path |
+| :--- | :--- |
+| **macOS** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| **Windows** | `%APPDATA%\Claude\claude_desktop_config.json` |
+| **Linux** | `~/.config/Claude/claude_desktop_config.json` |
+
+### Configuration File Content
+
+Add the `atlas` server block under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "atlas": {
+      "command": "npx",
+      "args": ["-y", "@atlascompiler/mcp"],
+      "env": {
+        "ATLAS_API_KEY": "atlas_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+<Note>
+  If you have existing MCP servers in `claude_desktop_config.json`, simply add `"atlas"` alongside them inside the `"mcpServers"` object. Restart Claude Desktop after updating the file.
+</Note>
+
+---
+
+## Troubleshooting Node.js Path in Claude Desktop
+
+On macOS and Linux, GUI applications like Claude Desktop often run in a minimal shell environment that might not include your custom Node.js path (especially when using version managers like `nvm`, `fnm`, or `asdf`).
+
+If Claude Desktop displays a red error indicator for Atlas:
+
+1. Determine the absolute path to `npx` in your terminal:
+   ```bash
+   which npx
+   # Output example: /usr/local/bin/npx or ~/.nvm/versions/node/v22.0.0/bin/npx
+   ```
+2. Replace `"command": "npx"` with the absolute path in `claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "atlas": {
+         "command": "/usr/local/bin/npx",
+         "args": ["-y", "@atlascompiler/mcp"],
+         "env": {
+           "ATLAS_API_KEY": "atlas_your_api_key_here"
+         }
+       }
+     }
+   }
+   ```
+3. Restart Claude Desktop.
+
+### Checking Claude Desktop Logs
+
+If you encounter issues, inspect Claude's local MCP logs:
+- **macOS:** `~/Library/Logs/Claude/mcp*.log`
+- **Windows:** `%APPDATA%\Claude\logs\mcp*.log`
+
+---
+
+## Conversational Research Workflows
+
+With Atlas connected, you can ask Claude to perform deep web research tasks directly in conversation:
+
+### 1. Financial & Corporate Research
+
+> "Use Atlas to compile the latest quarterly earnings release from https://investor.apple.com/... and extract the services revenue breakdown into a summary table comparing YoY growth."
+
+**What happens**: Claude calls `atlas_compile`, which deterministically preserves financial tables with proper alignment, allowing Claude to calculate percentage variances with 100% data fidelity.
+
+---
+
+### 2. Multi-Source Technical Comparison
+
+> "I want to compare the deployment options of Fly.io and Render. Use Atlas to scrape https://fly.io/docs/about/overview/ and https://render.com/docs/web-services, and synthesize their differences regarding persistent volumes and regional multi-cloud."
+
+**What happens**: Claude calls `atlas_scrape` on both URLs sequentially, receiving clean Markdown without sidebar navigation or cookie banners, and performs an unbiased technical synthesis.
+
+---
+
+### 3. Exploring Large Site Topologies
+
+> "Use Atlas to map https://docs.astronomer.io and identify all documentation guides related to Apache Airflow DAG authoring."
+
+**What happens**: Claude calls `atlas_map`, receives the full URL graph and sitemap discovery results, filters for relevant paths, and proposes a tailored reading list.
+
+---
+
+## Token Efficiency & Privacy in Claude
+
+- **Zero Data Retention (ZDR)**: Your browsing queries and compiled web documents are never stored or logged on disk by Atlas.
+- **Token Budget Protection**: Claude's context window is protected by Atlas's automatic 30,000-character budgeting and heading extraction.
+- **Deterministic Tables**: Unlike LLM-based web browsing which frequently misaligns table columns, Atlas's compiler reconstructs DOM table geometries into clean GFM pipe tables before Claude sees them.
