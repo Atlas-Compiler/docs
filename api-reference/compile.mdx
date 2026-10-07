@@ -79,17 +79,19 @@ import (
 )
 
 func main() {
-	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
-	result, err := client.Compile(context.Background(), &atlas.CompileParams{
-		URL: "https://stripe.com/pricing",
+	result, _, err := client.Compile(context.Background(), atlas.CompileUrlRequest{
+		Url: "https://stripe.com/pricing",
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Title: %s\n", result.Metadata.Title)
-	fmt.Println(result.Data.Markdown)
+	if result.Response200 != nil {
+		fmt.Printf("Title: %s\n", result.Response200.Metadata.Title)
+		fmt.Println(result.Response200.Markdown)
+	}
 }
 ```
 </CodeGroup>

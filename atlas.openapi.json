@@ -9234,6 +9234,11 @@
                     ],
                     "type": "string"
                   },
+                  "customerName": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
                   "planCode": {
                     "maxLength": 100,
                     "minLength": 1,
@@ -10353,6 +10358,11 @@
                       "500k",
                       "1m"
                     ],
+                    "type": "string"
+                  },
+                  "customerName": {
+                    "maxLength": 128,
+                    "minLength": 1,
                     "type": "string"
                   }
                 },

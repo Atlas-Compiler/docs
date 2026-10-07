@@ -75,18 +75,19 @@ import (
 )
 
 func main() {
-	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
-	result, err := client.Scrape(context.Background(), &atlas.ScrapeParams{
-		URL:     "https://news.ycombinator.com",
-		Formats: []string{"markdown", "links"},
+	result, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://news.ycombinator.com",
 	})
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Title: %s\n", result.Metadata.Title)
-	fmt.Println(result.Data.Markdown)
+	if result.Data.Markdown != nil {
+		fmt.Println(*result.Data.Markdown)
+	}
 }
 ```
 </CodeGroup>

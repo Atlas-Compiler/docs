@@ -58,7 +58,7 @@
 
 - JavaScript / TypeScript: `@atlascompiler/sdk`
 - Python: `atlascompiler` (PyPI)
-- Go: `go.atlas-compiler.com/sdk/pkg/atlas`
+- Go: `go.atlas-compiler.com/sdk`
 
 ## Full Documentation Text
 

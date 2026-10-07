@@ -89,7 +89,7 @@ package main
 	"log"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -150,7 +150,7 @@ You can invoke the Atlas API directly via `cURL` or install our official client 
   
   
     ```bash
-    go get go.atlas-compiler.com/sdk/pkg/atlas
+    go get go.atlas-compiler.com/sdk
     ```
   
 
@@ -202,7 +202,7 @@ package main
 	"log"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -777,7 +777,7 @@ package main
 	"log"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -933,7 +933,7 @@ package main
 	"os"
 	"time"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -1066,7 +1066,7 @@ package main
 	"log"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -1247,7 +1247,7 @@ package main
 	"os"
 	"time"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -1461,7 +1461,7 @@ package main
 	"os"
 	"time"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -1833,7 +1833,7 @@ package main
 	"net/http"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func webhookHandler(w http.ResponseWriter, r *http.Request) {
@@ -2494,16 +2494,15 @@ package main
 func main() {
 	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
-	result, _, err := client.Scrape(context.Background(), atlas.ScrapeRequest{
-		Url:     "https://example.com",
-		Formats: []string{"markdown"},
+	result, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com",
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	if result.Response200 != nil {
-		fmt.Println(result.Response200.Markdown)
+	if result.Data.Markdown != nil {
+		fmt.Println(*result.Data.Markdown)
 	}
 }
 ```
@@ -2654,7 +2653,7 @@ def compile_with_retry(url: str, max_retries: int = 3):
                 raise  # Permanent failure
 
             if err.retryable and attempt = maxRetries {
-				return nil, err
+				return result, err
 			}
 
 			delay := time.Duration(math.Pow(2, float64(attempt))*500+float64(rand.Intn(200))) * time.Millisecond
@@ -2662,9 +2661,10 @@ def compile_with_retry(url: str, max_retries: int = 3):
 			continue
 		}
 
-		return nil, err
+		return result, err
 	}
-	return nil, errors.New("exceeded maximum retries")
+	var empty atlas.CompileUrlResult
+	return empty, errors.New("exceeded maximum retries")
 }
 ```
 
@@ -2737,18 +2737,19 @@ package main
 )
 
 func main() {
-	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
-	result, err := client.Scrape(context.Background(), &atlas.ScrapeParams{
-		URL:     "https://news.ycombinator.com",
-		Formats: []string{"markdown", "links"},
+	result, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://news.ycombinator.com",
 	})
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Title: %s\n", result.Metadata.Title)
-	fmt.Println(result.Data.Markdown)
+	if result.Data.Markdown != nil {
+		fmt.Println(*result.Data.Markdown)
+	}
 }
 ```
 
@@ -2835,17 +2836,19 @@ package main
 )
 
 func main() {
-	client := atlas.NewClient(atlas.WithAPIKey(os.Getenv("ATLAS_API_KEY")))
+	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
-	result, err := client.Compile(context.Background(), &atlas.CompileParams{
-		URL: "https://stripe.com/pricing",
+	result, _, err := client.Compile(context.Background(), atlas.CompileUrlRequest{
+		Url: "https://stripe.com/pricing",
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Title: %s\n", result.Metadata.Title)
-	fmt.Println(result.Data.Markdown)
+	if result.Response200 != nil {
+		fmt.Printf("Title: %s\n", result.Response200.Metadata.Title)
+		fmt.Println(result.Response200.Markdown)
+	}
 }
 ```
 
@@ -2939,7 +2942,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -3074,7 +3077,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -3199,7 +3202,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -3288,7 +3291,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -3395,7 +3398,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -3486,7 +3489,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -3574,7 +3577,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -4066,7 +4069,7 @@ package main
 
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -4088,7 +4091,7 @@ package main
 	"fmt"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func main() {
@@ -4221,7 +4224,7 @@ package main
 	"net/http"
 	"os"
 
-	"go.atlas-compiler.com/sdk/pkg/atlas"
+	"go.atlas-compiler.com/sdk"
 )
 
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
@@ -5518,7 +5521,7 @@ Welcome to the initial production release of **Atlas Compiler** (`v1.0.0`). Atla
 - **Multi-Language Client Libraries**:
   - **TypeScript / JavaScript**: `@atlascompiler/sdk` with full typing, response envelope convenience getters, and HMAC signature helpers.
   - **Python**: `atlascompiler` on PyPI with synchronous and asynchronous clients, typed models, and keyword argument flexibility.
-  - **Go**: `go.atlas-compiler.com/sdk/pkg/atlas` with zero external dependencies outside standard library and context cancellation.
+  - **Go**: `go.atlas-compiler.com/sdk` with zero external dependencies outside standard library and context cancellation.
 - **Cryptographic Webhooks**:
   - Real-time HMAC-SHA256 signed event delivery for asynchronous crawl and batch completion (`crawl.completed`, `batch.completed`, `crawl.failed`, `batch.failed`).
 - **Production Quotas & Problem Details**:

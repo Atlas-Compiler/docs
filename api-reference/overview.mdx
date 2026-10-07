@@ -151,16 +151,15 @@ import (
 func main() {
 	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
-	result, _, err := client.Scrape(context.Background(), atlas.ScrapeRequest{
-		Url:     "https://example.com",
-		Formats: []string{"markdown"},
+	result, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
+		Url: "https://example.com",
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	if result.Response200 != nil {
-		fmt.Println(result.Response200.Markdown)
+	if result.Data.Markdown != nil {
+		fmt.Println(*result.Data.Markdown)
 	}
 }
 ```

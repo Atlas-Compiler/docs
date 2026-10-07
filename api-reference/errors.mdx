@@ -173,19 +173,19 @@ import (
 	"go.atlas-compiler.com/sdk"
 )
 
-func compileWithRetry(ctx context.Context, client *atlas.Client, url string, maxRetries int) (*atlas.CompileResult, error) {
+func compileWithRetry(ctx context.Context, client *atlas.Client, url string, maxRetries int) (atlas.CompileUrlResult, error) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		result, err := client.Compile(ctx, &atlas.CompileParams{URL: url})
+		result, _, err := client.Compile(ctx, atlas.CompileUrlRequest{Url: url})
 		if err == nil {
 			return result, nil
 		}
 
-		var atlasErr *atlas.Error
-		if errors.As(err, &atlasErr) {
-			fmt.Printf("Atlas Error [%s]: %s (Request: %s)\n", atlasErr.Code, atlasErr.Message, atlasErr.RequestID)
+		var problem *atlas.Problem
+		if errors.As(err, &problem) {
+			fmt.Printf("Atlas Error [%s]: %s (Request: %s)\n", problem.Code, problem.Detail, problem.RequestId)
 
-			if !atlasErr.Retryable || attempt >= maxRetries {
-				return nil, err
+			if !problem.Retryable || attempt >= maxRetries {
+				return result, err
 			}
 
 			delay := time.Duration(math.Pow(2, float64(attempt))*500+float64(rand.Intn(200))) * time.Millisecond
@@ -193,9 +193,10 @@ func compileWithRetry(ctx context.Context, client *atlas.Client, url string, max
 			continue
 		}
 
-		return nil, err
+		return result, err
 	}
-	return nil, errors.New("exceeded maximum retries")
+	var empty atlas.CompileUrlResult
+	return empty, errors.New("exceeded maximum retries")
 }
 ```
 </CodeGroup>
