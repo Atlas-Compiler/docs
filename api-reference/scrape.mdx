@@ -29,7 +29,7 @@ curl -X POST https://api.atlas-compiler.com/v1/scrape \
   -H "Authorization: Bearer $ATLAS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://news.ycombinator.com",
+    "url": "https://atlas-compiler.com",
     "formats": ["markdown", "links"]
   }'
 ```
@@ -40,7 +40,7 @@ import { AtlasClient } from '@atlascompiler/sdk';
 const atlas = new AtlasClient({ apiKey: process.env.ATLAS_API_KEY! });
 
 const result = await atlas.scrape({
-  url: 'https://news.ycombinator.com',
+  url: 'https://atlas-compiler.com',
   formats: ['markdown', 'links'],
 });
 
@@ -55,7 +55,7 @@ from atlascompiler import AtlasClient
 atlas = AtlasClient(api_key=os.environ["ATLAS_API_KEY"])
 
 result = atlas.scrape(
-    url="https://news.ycombinator.com",
+    url="https://atlas-compiler.com",
     formats=["markdown", "links"],
 )
 
@@ -78,7 +78,7 @@ func main() {
 	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
 	result, _, err := client.Scrape(context.Background(), atlas.ScrapeUrlRequest{
-		Url: "https://news.ycombinator.com",
+		Url: "https://atlas-compiler.com",
 	})
 	if err != nil {
 		panic(err)

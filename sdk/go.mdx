@@ -58,7 +58,7 @@ func main() {
 	client := atlas.New(os.Getenv("ATLAS_API_KEY"))
 
 	result, meta, err := client.Scrape(ctx, atlas.ScrapeUrlRequest{
-		Url: "https://news.ycombinator.com",
+		Url: "https://atlas-compiler.com",
 	})
 	if err != nil {
 		panic(err)

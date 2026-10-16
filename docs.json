@@ -177,6 +177,11 @@
       "discord": "https://discord.gg/z9ktRhuudq"
     }
   },
+  "integrations": {
+    "posthog": {
+      "apiKey": "phc_rdwggYQoESjKL6UjjdKWySSVzE6Eg27NQnLdxk28Nhvi"
+    }
+  },
   "seo": {
     "indexing": "navigable",
     "metatags": {
